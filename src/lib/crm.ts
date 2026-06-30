@@ -1,10 +1,10 @@
+import { CRM_CONFIG } from "./crm-config";
+
 export type CasoParams = {
-  titulo: string;
+  titulo:        string;
   observaciones: string;
-  proyecto: string;
-  ubicacion: string;
-  medioDelReclamo: number;
-  archivos: File[];
+  ubicacion:     string; // ubicacion_crm del apartamento (leído desde DB)
+  archivos:      File[];
 };
 
 export type CasoData = {
@@ -26,11 +26,11 @@ export async function crearCaso(params: CasoParams): Promise<CasoResponse> {
   }
 
   const body = new FormData();
-  body.append("titulo", params.titulo);
-  body.append("observaciones", params.observaciones);
-  body.append("proyecto", params.proyecto);
-  body.append("ubicacion", params.ubicacion);
-  body.append("medioDelReclamo", String(params.medioDelReclamo));
+  body.append("titulo",          params.titulo);
+  body.append("observaciones",   params.observaciones);
+  body.append("proyecto",        CRM_CONFIG.proyecto);
+  body.append("ubicacion",       params.ubicacion);
+  body.append("medioDelReclamo", String(CRM_CONFIG.medioDelReclamo));
 
   for (const archivo of params.archivos) {
     body.append("archivos", archivo, archivo.name);

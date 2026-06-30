@@ -95,18 +95,32 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const proyecto        = process.env.CRM_PROYECTO_SAP;
-  const medioRaw        = process.env.CRM_MEDIO_RECLAMO;
-  if (!proyecto || !medioRaw || !process.env.CRM_API_URL) {
-    console.error("Faltan variables de entorno CRM");
-    return NextResponse.json({ error: "Error de configuración del servidor" }, { status: 500 });
-  }
-  const medioDelReclamo = parseInt(medioRaw, 10);
-  if (isNaN(medioDelReclamo)) {
+  if (!process.env.CRM_API_URL) {
+    console.error("Falta variable de entorno CRM_API_URL");
     return NextResponse.json({ error: "Error de configuración del servidor" }, { status: 500 });
   }
 
-  // ── (b) Subir archivos a Spaces con key temporal ───────────────────────────
+  // ── (b) Leer ubicacion_crm del apartamento desde la DB ────────────────────
+  let ubicacionCrm: string;
+  try {
+    const result = await pool.query<{ ubicacion_crm: string | null }>(
+      "SELECT ubicacion_crm FROM apartamentos WHERE id = $1 LIMIT 1",
+      [user.apartamentoId]
+    );
+    const ubicacion = result.rows[0]?.ubicacion_crm;
+    if (!ubicacion) {
+      return NextResponse.json(
+        { error: "Apartamento sin código CRM configurado" },
+        { status: 400 }
+      );
+    }
+    ubicacionCrm = ubicacion;
+  } catch (err) {
+    console.error("Error consultando ubicacion_crm:", err);
+    return NextResponse.json({ error: "Error de configuración del servidor" }, { status: 500 });
+  }
+
+  // ── (c) Subir archivos a Spaces con key temporal ───────────────────────────
   // Usamos un ID temporal hasta que el CRM asigne el numeroCaso real.
   const tempId   = `tmp-${user.apartamentoId}-${Date.now()}`;
   const spacesUrls: string[] = [];
@@ -126,15 +140,13 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ── (c) Enviar al CRM de COMOSA ────────────────────────────────────────────
+  // ── (d) Enviar al CRM de COMOSA ────────────────────────────────────────────
   let crmResult;
   try {
     crmResult = await crearCaso({
       titulo,
       observaciones,
-      proyecto,
-      ubicacion:      user.ubicacion,
-      medioDelReclamo,
+      ubicacion: ubicacionCrm,
       archivos,
     });
   } catch (err) {
@@ -146,7 +158,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── (d) Si el CRM falló, no insertar en DB ─────────────────────────────────
+  // ── (e) Si el CRM falló, no insertar en DB ─────────────────────────────────
   if (!crmResult.success) {
     // Los archivos ya subidos permanecen en Spaces (sin caso asociado aún).
     return NextResponse.json({ error: crmResult.message }, { status: 400 });
@@ -154,7 +166,7 @@ export async function POST(request: NextRequest) {
 
   const numeroCaso = crmResult.data?.numeroCaso ?? "";
 
-  // ── (e) Guardar respaldo en reclamos_respaldo ─────────────────────────────
+  // ── (f) Guardar respaldo en reclamos_respaldo ─────────────────────────────
   try {
     await pool.query(
       `INSERT INTO reclamos_respaldo
