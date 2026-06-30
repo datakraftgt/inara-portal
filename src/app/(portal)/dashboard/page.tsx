@@ -214,7 +214,7 @@ function CardGrid() {
       <h2 className="font-playfair text-sm font-bold text-[#2D5A3D] uppercase tracking-widest mb-4">
         Tu portal
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {PORTAL_CARDS.map((card) => (
           <Link
             key={card.title}

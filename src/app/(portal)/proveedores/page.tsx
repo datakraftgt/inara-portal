@@ -497,10 +497,28 @@ export default function ProveedoresPage() {
 
       </div>
 
-      {/* ── Mobile/tablet modal — below lg ── */}
+      {/* ── Mobile/tablet bottom sheet — below lg ── */}
       {selected && (
-        <div className="fixed inset-0 z-50 lg:hidden bg-white flex flex-col">
-          <ProveedorDetail proveedor={selected} onClose={() => setSelectedId(null)} />
+        <div
+          className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end"
+          onClick={() => setSelectedId(null)}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/40" />
+
+          {/* Sheet */}
+          <div
+            className="relative bg-white rounded-t-2xl flex flex-col overflow-hidden"
+            style={{ height: "80vh" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-10 h-1 rounded-full bg-gray-200" />
+            </div>
+
+            <ProveedorDetail proveedor={selected} onClose={() => setSelectedId(null)} />
+          </div>
         </div>
       )}
     </>

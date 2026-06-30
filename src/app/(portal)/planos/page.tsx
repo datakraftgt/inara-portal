@@ -332,7 +332,7 @@ export default async function PlanosPage() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {PLANOS.map((plano) => (
           <PlanoCard
             key={plano.folder}
