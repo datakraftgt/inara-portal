@@ -8,10 +8,15 @@ declare global {
 function createPool(): Pool {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL no está configurado");
+
+  // SSL strict by default. Set DB_SSL_STRICT=false in .env.local only if your
+  // local Postgres instance uses a self-signed cert (e.g. Docker without TLS).
+  // Staging and production should never set this to false.
+  const rejectUnauthorized = process.env.DB_SSL_STRICT !== "false";
+
   return new Pool({
     connectionString,
-    // rejectUnauthorized: false only in dev — Supabase certs are valid in prod
-    ssl: { rejectUnauthorized: process.env.NODE_ENV === "production" },
+    ssl: { rejectUnauthorized },
   });
 }
 

@@ -321,12 +321,12 @@ export default async function PlanosPage() {
     <main className="flex-1 overflow-y-auto p-6">
       {/* Header info */}
       <div className="flex items-center gap-2 mb-6">
-        <span className="text-xs text-gray-400">Apartamento</span>
+        <span className="text-xs text-gray-600">Apartamento</span>
         <code className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
           {user.ubicacion}
         </code>
-        <span className="text-xs text-gray-300">·</span>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-gray-400">·</span>
+        <span className="text-xs text-gray-600">
           {totalFiles === 0 ? "Sin archivos disponibles" : `${totalFiles} archivo${totalFiles !== 1 ? "s" : ""}`}
         </span>
       </div>

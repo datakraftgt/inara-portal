@@ -9,21 +9,103 @@ function getSecret() {
   return new TextEncoder().encode(secret);
 }
 
+// ─── In-memory rate limiter ───────────────────────────────────────────────────
+// Tracks failed login attempts per IP. Resets after WINDOW_MS.
+// Works per-process; sufficient for this portal's scale (~197 apartments).
+
+const WINDOW_MS   = 60_000; // 1 minute
+const MAX_ATTEMPTS = 5;
+
+const attempts = new Map<string, { count: number; resetAt: number }>();
+
+function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
+
+function isRateLimited(ip: string): boolean {
+  const now   = Date.now();
+  const entry = attempts.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    return false;
+  }
+  if (entry.count >= MAX_ATTEMPTS) return true;
+
+  entry.count++;
+  return false;
+}
+
+function recordFailedAttempt(ip: string): void {
+  const now   = Date.now();
+  const entry = attempts.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+  } else {
+    entry.count++;
+  }
+}
+
+function clearAttempts(ip: string): void {
+  attempts.delete(ip);
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
+
 export async function POST(request: NextRequest) {
-  let body: { apartamento?: string; password?: string };
+  const ip = getClientIp(request);
+
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Demasiados intentos. Espera un minuto e intenta de nuevo." },
+      { status: 429 }
+    );
+  }
+
+  let apartamento: string | undefined;
+  let password: string | undefined;
+  let nativeForm = false;
+  let formFrom = "";
+
   try {
-    body = await request.json();
+    const ct = request.headers.get("content-type") ?? "";
+    if (ct.includes("application/json")) {
+      const body = await request.json() as { apartamento?: string; password?: string };
+      apartamento = body.apartamento;
+      password    = body.password;
+    } else {
+      // Native HTML form submission (pre-hydration fallback)
+      nativeForm = true;
+      const fd = await request.formData();
+      apartamento = (fd.get("apartment") as string) || undefined;
+      password    = (fd.get("password")  as string) || undefined;
+      formFrom    = (fd.get("from")      as string) || "";
+    }
   } catch {
     return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
   }
 
-  const { apartamento, password } = body;
+  function errResponse(msg: string, status: number) {
+    if (nativeForm) {
+      const url = new URL("/login", request.url);
+      url.searchParams.set("error", "1");
+      if (formFrom) url.searchParams.set("from", formFrom);
+      return NextResponse.redirect(url, 303);
+    }
+    return NextResponse.json({ error: msg }, { status });
+  }
 
   if (!apartamento || !password) {
-    return NextResponse.json(
-      { error: "Número de apartamento y contraseña son requeridos" },
-      { status: 400 }
-    );
+    return errResponse("Número de apartamento y contraseña son requeridos", 400);
+  }
+
+  if (password.length > 200) {
+    return errResponse("Credenciales incorrectas", 401);
   }
 
   let row: Record<string, unknown> | undefined;
@@ -39,17 +121,22 @@ export async function POST(request: NextRequest) {
     row = result.rows[0];
   } catch (err) {
     console.error("Error consultando la base de datos:", err);
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+    return errResponse("Error interno del servidor", 500);
   }
 
   if (!row) {
-    return NextResponse.json({ error: "Credenciales incorrectas" }, { status: 401 });
+    recordFailedAttempt(ip);
+    return errResponse("Credenciales incorrectas", 401);
   }
 
   const passwordMatch = await bcrypt.compare(password, row.password_hash as string);
   if (!passwordMatch) {
-    return NextResponse.json({ error: "Credenciales incorrectas" }, { status: 401 });
+    recordFailedAttempt(ip);
+    return errResponse("Credenciales incorrectas", 401);
   }
+
+  // Login exitoso — limpiar contador de intentos
+  clearAttempts(ip);
 
   const rol = row.rol as "residente" | "admin";
   const apartamentoId = row.id as number;           // integer PK para FKs en DB
@@ -82,7 +169,11 @@ export async function POST(request: NextRequest) {
     .setExpirationTime("24h")
     .sign(getSecret());
 
-  const response = NextResponse.json({ redirectTo });
+  const destination = nativeForm ? (formFrom || redirectTo) : redirectTo;
+
+  const response = nativeForm
+    ? NextResponse.redirect(new URL(destination, request.url))
+    : NextResponse.json({ redirectTo });
 
   response.cookies.set("session", token, {
     httpOnly: true,

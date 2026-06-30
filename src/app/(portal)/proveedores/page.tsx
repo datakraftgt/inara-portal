@@ -460,7 +460,7 @@ export default function ProveedoresPage() {
           {/* Scrollable grid */}
           <div className="flex-1 overflow-y-auto p-4">
             {/* Result count */}
-            <p className="text-xs text-gray-400 mb-3">
+            <p className="text-xs text-gray-600 mb-3">
               {filtered.length === 0
                 ? "Sin resultados"
                 : `${filtered.length} proveedor${filtered.length !== 1 ? "es" : ""}`}
@@ -470,7 +470,7 @@ export default function ProveedoresPage() {
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <IconSearch size={32} stroke={1.25} className="text-gray-300 mb-3" />
                 <p className="text-sm font-medium text-gray-500">No se encontraron proveedores</p>
-                <p className="text-xs text-gray-400 mt-1">Intenta con otro nombre o categoría</p>
+                <p className="text-xs text-gray-600 mt-1">Intenta con otro nombre o categoría</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

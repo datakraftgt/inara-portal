@@ -51,7 +51,7 @@ export default function Topbar({ onMenuOpen }: { onMenuOpen?: () => void }) {
         {/* Current date — suppressHydrationWarning avoids SSR/client mismatch on date */}
         <time
           suppressHydrationWarning
-          className="text-sm text-gray-400 hidden sm:block tabular-nums"
+          className="text-sm text-gray-600 hidden sm:block tabular-nums"
         >
           {formatDate(new Date())}
         </time>
@@ -60,7 +60,7 @@ export default function Topbar({ onMenuOpen }: { onMenuOpen?: () => void }) {
           onClick={handleLogout}
           disabled={busy}
           aria-label="Cerrar sesión"
-          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40 cursor-pointer"
+          className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-red-500 transition-colors disabled:opacity-40 cursor-pointer"
         >
           <IconLogout size={17} stroke={1.75} />
           <span className="hidden sm:inline">Cerrar sesión</span>

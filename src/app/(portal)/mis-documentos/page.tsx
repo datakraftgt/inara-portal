@@ -7,7 +7,7 @@ import {
   IconMicrowave,
   IconBuilding,
   IconBolt,
-  IconStar,
+  IconHome,
   IconFileTypePdf,
   IconEye,
   IconDownload,
@@ -32,12 +32,12 @@ type Section = {
 // ─── Sections metadata ────────────────────────────────────────────────────────
 
 const SECTIONS: Section[] = [
+  { id: "bienvenida",            label: "Documentos de Bienvenida", Icon: IconHome          },
   { id: "reglamento",            label: "Reglamento del edificio",  Icon: IconBook          },
   { id: "manual-usuario",        label: "Manual de usuario",        Icon: IconManualGearbox },
   { id: "catalogo-linea-blanca", label: "Catálogo de línea blanca", Icon: IconMicrowave     },
   { id: "administracion",        label: "Administración",           Icon: IconBuilding      },
   { id: "eegsa",                 label: "EEGSA – Energía eléctrica",Icon: IconBolt          },
-  { id: "bienvenida",            label: "Documentos de Bienvenida", Icon: IconStar          },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ export default function MisDocumentosPage() {
               <section.Icon
                 size={16}
                 stroke={isActive ? 2 : 1.6}
-                className={isActive ? "text-[#2D5A3D]" : "text-gray-400"}
+                className={`flex-shrink-0 ${isActive ? "text-[#2D5A3D]" : "text-gray-400"}`}
               />
               <span className="md:block">{section.label}</span>
             </button>
@@ -212,7 +212,7 @@ export default function MisDocumentosPage() {
             <div>
               <h2 className="text-base font-semibold text-gray-900">{active.label}</h2>
               {!isLoading && (
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-gray-600 mt-0.5">
                   {files.length === 0
                     ? "Sin documentos disponibles"
                     : files.length === 1
@@ -225,7 +225,7 @@ export default function MisDocumentosPage() {
 
           {/* Loading */}
           {isLoading && (
-            <div className="flex items-center gap-2 text-sm text-gray-400 py-8 justify-center">
+            <div className="flex items-center gap-2 text-sm text-gray-600 py-8 justify-center">
               <IconLoader2 size={16} className="animate-spin" />
               Cargando documentos...
             </div>
@@ -235,7 +235,7 @@ export default function MisDocumentosPage() {
           {!isLoading && files.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <IconFile size={32} stroke={1} className="text-gray-200" />
-              <p className="text-sm text-gray-400">No hay documentos subidos en esta categoría todavía.</p>
+              <p className="text-sm text-gray-600">No hay documentos subidos en esta categoría todavía.</p>
             </div>
           )}
 
@@ -250,8 +250,8 @@ export default function MisDocumentosPage() {
 
           {/* Shared notice */}
           {!isLoading && files.length > 0 && (
-            <p className="mt-6 text-xs text-gray-400 flex items-center gap-1.5">
-              <span className="w-1 h-1 rounded-full bg-gray-300 inline-block" />
+            <p className="mt-6 text-xs text-gray-600 flex items-center gap-1.5">
+              <span className="w-1 h-1 rounded-full bg-gray-400 inline-block" />
               Documentos compartidos para todos los propietarios de Inara Américas II
             </p>
           )}

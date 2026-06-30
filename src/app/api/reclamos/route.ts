@@ -14,6 +14,23 @@ const ALLOWED_EXTENSIONS = new Set([
   "mp4", "mov", "avi", "wmv", "mkv", "webm",
 ]);
 
+// MIME types allowed per extension — extension alone can be spoofed
+const ALLOWED_MIMES: Record<string, string[]> = {
+  pdf:  ["application/pdf"],
+  docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  xlsx: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+  png:  ["image/png"],
+  jpg:  ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  txt:  ["text/plain"],
+  mp4:  ["video/mp4"],
+  mov:  ["video/quicktime"],
+  avi:  ["video/x-msvideo", "video/avi"],
+  wmv:  ["video/x-ms-wmv"],
+  mkv:  ["video/x-matroska"],
+  webm: ["video/webm"],
+};
+
 function getExtension(filename: string): string {
   return filename.split(".").pop()?.toLowerCase() ?? "";
 }
@@ -62,9 +79,17 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!ALLOWED_EXTENSIONS.has(getExtension(archivo.name))) {
+    const ext = getExtension(archivo.name);
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
       return NextResponse.json(
         { error: `El formato del archivo "${archivo.name}" no está permitido` },
+        { status: 400 }
+      );
+    }
+    const mime = archivo.type.toLowerCase().split(";")[0].trim();
+    if (!ALLOWED_MIMES[ext]?.includes(mime)) {
+      return NextResponse.json(
+        { error: `El tipo del archivo "${archivo.name}" no coincide con su extensión` },
         { status: 400 }
       );
     }

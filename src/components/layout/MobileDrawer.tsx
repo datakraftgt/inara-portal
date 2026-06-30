@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { IconLogout, IconX } from "@tabler/icons-react";
 
@@ -52,10 +53,15 @@ export default function MobileDrawer({ open, onClose }: Props) {
           ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Header */}
-        <div className="h-[52px] flex items-center justify-between px-5 border-b border-[#3D7A54] flex-shrink-0">
-          <span className="text-white font-bold text-sm leading-tight">
-            Inara<br />Américas II
-          </span>
+        <div className="flex items-center justify-between px-4 py-5 border-b border-[#3D7A54] flex-shrink-0">
+          <Link href="/dashboard">
+            <Image
+              src="/images/logo-inara-ii.png"
+              alt="Inara Américas II"
+              width={110}
+              height={82}
+            />
+          </Link>
           <button
             onClick={onClose}
             aria-label="Cerrar menú"

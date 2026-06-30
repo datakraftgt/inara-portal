@@ -8,15 +8,16 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
+  // Auth first — unauthenticated requests always get 401, not prefix info
+  const session = await verifySession(request);
+  if (!session) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   const filePath = params.path.join("/");
 
   if (!ALLOWED_PREFIXES.some((p) => filePath.startsWith(p))) {
     return NextResponse.json({ error: "Ruta no permitida" }, { status: 403 });
-  }
-
-  const session = await verifySession(request);
-  if (!session) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   if (filePath.startsWith("apartamentos/")) {

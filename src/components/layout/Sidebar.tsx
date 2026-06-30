@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { IconLogout } from "@tabler/icons-react";
 import { useState } from "react";
@@ -26,10 +27,16 @@ export default function Sidebar() {
 
   return (
     <aside className="w-[200px] min-h-screen bg-[#2D5A3D] hidden md:flex flex-col flex-shrink-0">
-      <div className="h-[52px] flex items-center px-5 border-b border-[#3D7A54]">
-        <span className="text-white font-bold text-sm leading-tight">
-          Inara<br />Américas II
-        </span>
+      <div className="flex items-center justify-center py-5 px-4 border-b border-[#3D7A54]">
+        <Link href="/dashboard">
+          <Image
+            src="/images/logo-inara-ii.png"
+            alt="Inara Américas II"
+            width={130}
+            height={96}
+            priority
+          />
+        </Link>
       </div>
 
       <nav className="flex-1 py-4">

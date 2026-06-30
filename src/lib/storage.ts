@@ -109,8 +109,6 @@ export async function getPresignedDownloadUrl(
   const cached = urlCache.get(cacheKey);
 
   if (cached && cached.expiresAt > Date.now()) {
-    // DEBUG — eliminar una vez confirmada la descarga
-    console.log("[presigned] cache hit →", cached.url.substring(0, 120) + "...");
     return cached.url;
   }
 
@@ -129,10 +127,6 @@ export async function getPresignedDownloadUrl(
     }),
     { expiresIn: ttl }
   );
-
-  // DEBUG — eliminar una vez confirmada la descarga
-  console.log("[presigned] new URL key=%s dl=%s", key, downloadFilename ?? "(view)");
-  console.log("[presigned] url=", url);
 
   urlCache.set(cacheKey, { url, expiresAt: Date.now() + ttl * 1000 });
 

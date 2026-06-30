@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const nativeError = searchParams.get("error") === "1"
+    ? "Credenciales incorrectas. Verifica tu número de apartamento y contraseña."
+    : null;
+  const [error, setError] = useState<string | null>(nativeError);
   const [loading, setLoading] = useState(false);
+  // Prevent native form submission before React hydration completes.
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(true); }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,8 +47,17 @@ export default function LoginForm() {
     }
   }
 
+  const from = searchParams.get("from") ?? "";
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+    <form
+      method="post"
+      action="/api/auth/login"
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-5"
+      noValidate
+    >
+      <input type="hidden" name="from" value={from} />
       {error && (
         <div
           role="alert"
@@ -54,7 +69,7 @@ export default function LoginForm() {
 
       {/* Apartment number */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="apartment" className="text-sm font-medium text-gray-700">
+        <label htmlFor="apartment" className="text-sm font-medium text-white md:text-gray-700">
           Número de apartamento
         </label>
         <input
@@ -65,13 +80,13 @@ export default function LoginForm() {
           placeholder="Ej. A-101"
           required
           disabled={loading}
-          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
+          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-white md:focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
         />
       </div>
 
       {/* Password */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="password" className="text-sm font-medium text-gray-700">
+        <label htmlFor="password" className="text-sm font-medium text-white md:text-gray-700">
           Contraseña
         </label>
         <input
@@ -82,9 +97,9 @@ export default function LoginForm() {
           placeholder="••••••••"
           required
           disabled={loading}
-          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
+          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-white md:focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
         />
-        <p className="text-[11px] text-gray-400 leading-snug mt-0.5">
+        <p className="text-[11px] text-white/60 md:text-gray-400 leading-snug mt-0.5">
           Tu contraseña inicial es el número de DPI del titular del apartamento.
         </p>
       </div>
@@ -92,8 +107,8 @@ export default function LoginForm() {
       {/* Submit */}
       <button
         type="submit"
-        disabled={loading}
-        className="mt-1 w-full rounded-lg bg-[#2D5A3D] text-white py-2.5 text-sm font-semibold hover:bg-[#4a8060] active:bg-[#1E3D2A] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2D5A3D] focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+        disabled={!ready || loading}
+        className="mt-1 w-full rounded-lg bg-[#E4DCD4] text-[#2D5A3D] md:bg-[#2D5A3D] md:text-white py-2.5 text-sm font-semibold hover:bg-[#d5cdc5] md:hover:bg-[#4a8060] active:bg-[#c9c2ba] md:active:bg-[#1E3D2A] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E4DCD4]/60 md:focus:ring-[#2D5A3D] focus:ring-offset-2 focus:ring-offset-[#2D5A3D] md:focus:ring-offset-white disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? "Verificando…" : "Ingresar"}
       </button>

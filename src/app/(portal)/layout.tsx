@@ -13,7 +13,7 @@ export default function PortalLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-[#E4DCD4]">
       {/* Desktop sidebar — hidden on mobile */}
       <Sidebar />
 

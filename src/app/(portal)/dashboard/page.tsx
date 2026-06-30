@@ -44,6 +44,13 @@ const DELIVERY_DATE = "2025-08-31";
 
 const PORTAL_CARDS: PortalCard[] = [
   {
+    Icon: IconStar,
+    title: "Documentos de Bienvenida",
+    description: "Acta de entrega y documentación inicial",
+    count: "2 documentos",
+    href: "/mis-documentos",
+  },
+  {
     Icon: IconBook,
     title: "Reglamento del edificio",
     description: "Normas de convivencia y uso de instalaciones comunes",
@@ -82,13 +89,6 @@ const PORTAL_CARDS: PortalCard[] = [
     Icon: IconBolt,
     title: "EEGSA – Energía eléctrica",
     description: "Documentos de conexión y contrato con la distribuidora",
-    count: "2 documentos",
-    href: "/mis-documentos",
-  },
-  {
-    Icon: IconStar,
-    title: "Documentos de Bienvenida",
-    description: "Acta de entrega y documentación inicial",
     count: "2 documentos",
     href: "/mis-documentos",
   },
@@ -183,7 +183,7 @@ function HeroBand({
           <p className="text-white/55 text-xs tracking-widest uppercase mb-2 font-light">
             Portal Postventa
           </p>
-          <h1 className="text-white text-2xl md:text-3xl font-semibold leading-snug">
+          <h1 className="font-playfair text-white text-3xl md:text-4xl font-semibold leading-snug">
             Bienvenida/o,&nbsp;{nombre}
           </h1>
           <p className="text-white/65 text-sm mt-1.5">
@@ -211,7 +211,7 @@ function HeroBand({
 function CardGrid() {
   return (
     <section className="px-6 md:px-10 pt-8 pb-4">
-      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
+      <h2 className="font-playfair text-sm font-bold text-[#2D5A3D] uppercase tracking-widest mb-4">
         Tu portal
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -274,7 +274,7 @@ function ClaimsSection() {
   return (
     <section className="px-6 md:px-10 py-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+        <h2 className="font-playfair text-sm font-bold text-[#2D5A3D] uppercase tracking-widest">
           Últimos reclamos
         </h2>
         <Link
@@ -337,8 +337,8 @@ export default async function DashboardPage() {
         apartamento={user.codigoLogin}
         ubicacion={user.ubicacion}
       />
-      <CardGrid />
       <ClaimsSection />
+      <CardGrid />
     </div>
   );
 }
