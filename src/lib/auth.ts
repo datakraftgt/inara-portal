@@ -1,4 +1,4 @@
-import { jwtVerify } from "jose";
+import { jwtVerify } from "jose/jwt/verify";
 import { NextRequest } from "next/server";
 
 function getSecret() {

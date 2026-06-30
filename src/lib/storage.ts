@@ -3,10 +3,15 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+let _client: S3Client | null = null;
+
 function getClient(): S3Client {
+  if (_client) return _client;
+
   const region    = process.env.DO_SPACES_REGION;
   const endpoint  = process.env.DO_SPACES_ENDPOINT;
   const accessKey = process.env.DO_SPACES_ACCESS_KEY;
@@ -16,12 +21,18 @@ function getClient(): S3Client {
     throw new Error("Faltan variables de entorno DO_SPACES_*");
   }
 
-  return new S3Client({
+  _client = new S3Client({
     region,
-    endpoint,
+    endpoint: endpoint.replace(/\/$/, ""),
     credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
     forcePathStyle: false,
+    // DO Spaces does not support x-amz-checksum-mode; disable automatic checksum
+    // to prevent the SDK from appending x-amz-checksum-mode=ENABLED to GetObject URLs.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
+
+  return _client;
 }
 
 function getBucket(): string {
@@ -71,6 +82,20 @@ function getTtl(key: string): number {
 }
 
 /**
+ * Builds the ResponseContentDisposition value using RFC 5987 encoding.
+ * Avoids literal `"` characters in the URL — the AWS SDK does not percent-encode
+ * them, which causes Chrome to re-encode them on navigation and invalidates the
+ * SigV4 signature on the DigitalOcean Spaces side.
+ */
+function buildContentDisposition(filename: string): string {
+  // RFC 5987: filename*=UTF-8''<percent-encoded>
+  // - No `"` in the value → no Chrome re-encoding issue
+  // - Works for ASCII and non-ASCII filenames
+  const encoded = encodeURIComponent(filename).replace(/'/g, "%27");
+  return `attachment; filename*=UTF-8''${encoded}`;
+}
+
+/**
  * Genera una URL firmada de descarga.
  * Las URLs se cachean en memoria: 1 hora para compartidos/, 10 min para apartamentos/.
  * Si downloadFilename está presente, la URL incluye Content-Disposition: attachment.
@@ -84,27 +109,77 @@ export async function getPresignedDownloadUrl(
   const cached = urlCache.get(cacheKey);
 
   if (cached && cached.expiresAt > Date.now()) {
+    // DEBUG — eliminar una vez confirmada la descarga
+    console.log("[presigned] cache hit →", cached.url.substring(0, 120) + "...");
     return cached.url;
   }
 
   const ttl = getTtl(key);
-  const client = getClient();
+
+  const contentDisposition = downloadFilename
+    ? buildContentDisposition(downloadFilename)
+    : undefined;
 
   const url = await getSignedUrl(
-    client,
+    getClient(),
     new GetObjectCommand({
       Bucket: getBucket(),
       Key: key,
-      ...(downloadFilename && {
-        ResponseContentDisposition: `attachment; filename="${downloadFilename}"`,
-      }),
+      ...(contentDisposition && { ResponseContentDisposition: contentDisposition }),
     }),
     { expiresIn: ttl }
   );
 
+  // DEBUG — eliminar una vez confirmada la descarga
+  console.log("[presigned] new URL key=%s dl=%s", key, downloadFilename ?? "(view)");
+  console.log("[presigned] url=", url);
+
   urlCache.set(cacheKey, { url, expiresAt: Date.now() + ttl * 1000 });
 
   return url;
+}
+
+// ─── File listing ─────────────────────────────────────────────────────────────
+
+export type StorageFile = {
+  key: string;
+  filename: string;
+  size: number;
+  lastModified: Date;
+};
+
+/**
+ * Lista todos los objetos bajo un prefijo. Pagina automáticamente si hay >1000.
+ * Omite entradas que terminen en "/" (carpetas virtuales).
+ */
+export async function listFiles(prefix: string): Promise<StorageFile[]> {
+  const c = getClient();
+  const bucket = getBucket();
+  const results: StorageFile[] = [];
+  let token: string | undefined;
+
+  do {
+    const cmd = new ListObjectsV2Command({
+      Bucket: bucket,
+      Prefix: prefix,
+      ContinuationToken: token,
+    });
+    const res = await c.send(cmd);
+
+    for (const obj of res.Contents ?? []) {
+      if (!obj.Key || obj.Key.endsWith("/")) continue;
+      results.push({
+        key: obj.Key,
+        filename: obj.Key.split("/").pop()!,
+        size: obj.Size ?? 0,
+        lastModified: obj.LastModified ?? new Date(),
+      });
+    }
+
+    token = res.NextContinuationToken;
+  } while (token);
+
+  return results;
 }
 
 /**
@@ -135,9 +210,16 @@ export function documentoKey(ubicacion: string, filename: string): string {
 
 /**
  * Documentos compartidos entre los 197 apartamentos.
- * secciones: reglamento | manual | linea-blanca | administracion | eegsa | bienvenida
  * ej. "compartidos/reglamento/reglamento-edificio.pdf"
  */
 export function compartidoKey(seccion: string, filename: string): string {
   return `compartidos/${seccion}/${filename}`;
+}
+
+/**
+ * Archivo individual de un tipo de plano (estructura multi-archivo).
+ * ej. "apartamentos/TAN01A0101/planos/arquitectonico/plano-v1.pdf"
+ */
+export function planoKey(ubicacion: string, tipoPlano: string, filename: string): string {
+  return `apartamentos/${ubicacion}/planos/${tipoPlano}/${filename}`;
 }
