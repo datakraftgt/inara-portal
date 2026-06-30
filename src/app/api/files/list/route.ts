@@ -13,14 +13,14 @@ export async function GET(request: NextRequest) {
 
   const prefix = request.nextUrl.searchParams.get("prefix") ?? "";
 
+  if (!prefix) {
+    return NextResponse.json({ error: "Se requiere el parámetro 'prefix'" }, { status: 400 });
+  }
+
   // Residents can only list compartidos sections
   // Admins can list anything (they use /api/admin/files for that)
   if (session.rol === "residente" && !prefix.startsWith(COMPARTIDOS_PREFIX)) {
     return NextResponse.json({ error: "Acceso no permitido" }, { status: 403 });
-  }
-
-  if (!prefix) {
-    return NextResponse.json({ error: "Se requiere el parámetro 'prefix'" }, { status: 400 });
   }
 
   try {
