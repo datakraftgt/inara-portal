@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
-import type { UserPayload } from "./auth";
+import type { ResidentePayload } from "./auth";
 
 function getSecret() {
   const secret = process.env.JWT_SECRET;
@@ -10,16 +10,16 @@ function getSecret() {
 
 /**
  * Server-only helper — reads the session cookie via next/headers.
- * Do NOT import this in middleware (Edge Runtime); use verifyAuth() instead.
+ * Do NOT import this in middleware (Edge Runtime); use verifySession() instead.
  */
-export async function getServerSession(): Promise<UserPayload | null> {
+export async function getServerSession(): Promise<ResidentePayload | null> {
   const token = cookies().get("session")?.value;
   if (!token) return null;
 
   try {
     const { payload } = await jwtVerify(token, getSecret());
-    if (payload["type"] !== "user") return null;
-    return payload as unknown as UserPayload;
+    if (payload["rol"] !== "residente") return null;
+    return payload as unknown as ResidentePayload;
   } catch {
     return null;
   }

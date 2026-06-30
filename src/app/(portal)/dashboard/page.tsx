@@ -334,7 +334,7 @@ export default async function DashboardPage() {
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
       <HeroBand
         nombre={user.nombre}
-        apartamento={user.apartamento}
+        apartamento={user.codigoLogin}
         ubicacion={user.ubicacion}
       />
       <CardGrid />

@@ -7,43 +7,51 @@ function getSecret() {
   return new TextEncoder().encode(secret);
 }
 
-export type UserPayload = {
-  type: "user";
-  apartamento: string;
+export type ResidentePayload = {
+  rol: "residente";
+  apartamentoId: number; // integer PK de la tabla apartamentos (para FKs en DB)
+  codigoLogin: string;
+  torre: string;
+  numero: string;
+  modelo: string;
+  nivel: string;
   nombre: string;
   ubicacion: string;
-  proyecto: string;
 };
 
 export type AdminPayload = {
-  type: "admin";
-  usuario: string;
+  rol: "admin";
+  apartamentoId: number;
+  codigoLogin: string;
 };
 
-export type AuthPayload = UserPayload | AdminPayload;
+export type SessionPayload = ResidentePayload | AdminPayload;
 
-export async function verifyAuth(request: NextRequest): Promise<UserPayload | null> {
+// Alias mantenido para compatibilidad con código existente (reclamos, etc.)
+export type UserPayload = ResidentePayload;
+
+export async function verifySession(request: NextRequest): Promise<SessionPayload | null> {
   const token = request.cookies.get("session")?.value;
   if (!token) return null;
-
   try {
     const { payload } = await jwtVerify(token, getSecret());
-    if (payload["type"] !== "user") return null;
-    return payload as unknown as UserPayload;
+    const rol = payload["rol"] as string | undefined;
+    if (rol !== "residente" && rol !== "admin") return null;
+    return payload as unknown as SessionPayload;
   } catch {
     return null;
   }
 }
 
-export async function verifyAdminAuth(request: NextRequest): Promise<AdminPayload | null> {
-  const token = request.cookies.get("admin-session")?.value;
-  if (!token) return null;
+export async function verifyAuth(request: NextRequest): Promise<ResidentePayload | null> {
+  const session = await verifySession(request);
+  if (!session || session.rol !== "residente") return null;
+  return session;
+}
 
-  try {
-    const { payload } = await jwtVerify(token, getSecret());
-    if (payload["type"] !== "admin") return null;
-    return payload as unknown as AdminPayload;
-  } catch {
-    return null;
-  }
+/** @deprecated Usar verifySession() + comprobar rol === 'admin' */
+export async function verifyAdminAuth(request: NextRequest): Promise<AdminPayload | null> {
+  const session = await verifySession(request);
+  if (!session || session.rol !== "admin") return null;
+  return session;
 }

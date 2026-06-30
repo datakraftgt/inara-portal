@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { redirect } from "next/navigation";
-import { IconDownload } from "@tabler/icons-react";
 import { getServerSession } from "@/lib/session";
+import { PlanoDownloadButton } from "@/components/planos/PlanoDownloadButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -288,8 +288,7 @@ const PLANOS: PlanoData[] = [
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 function PlanoCard({ plano, ubicacion }: { plano: PlanoData; ubicacion: string }) {
-  const key         = `apartamentos/${ubicacion}/planos/${plano.filename}`;
-  const downloadUrl = `/api/files/${key}?dl=1`;
+  const apiPath = `/api/files/apartamentos/${ubicacion}/planos/${plano.filename}`;
 
   return (
     <article className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 transition-all group flex flex-col">
@@ -318,14 +317,7 @@ function PlanoCard({ plano, ubicacion }: { plano: PlanoData; ubicacion: string }
         {/* Footer */}
         <div className="flex items-center justify-between pt-1 border-t border-gray-100">
           <span className="text-xs text-gray-400">{plano.size}</span>
-          <a
-            href={downloadUrl}
-            download={plano.filename}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2D5A3D] text-white text-xs font-medium hover:bg-[#4a8060] active:bg-[#1E3D2A] transition-colors"
-          >
-            <IconDownload size={13} stroke={2} />
-            Descargar
-          </a>
+          <PlanoDownloadButton apiPath={apiPath} />
         </div>
       </div>
     </article>

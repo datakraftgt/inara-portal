@@ -1,31 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAuth, verifyAdminAuth } from "@/lib/auth";
+import { verifySession } from "@/lib/auth";
 
-const USER_ROUTES = ["/dashboard", "/planos", "/mis-documentos", "/documentos", "/proveedores", "/reclamos"];
+const RESIDENTE_ROUTES = ["/dashboard", "/planos", "/mis-documentos", "/documentos", "/proveedores", "/reclamos"];
 const ADMIN_ROUTES = ["/admin"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Admin routes ──────────────────────────────────────────────────────────
+  // ── Rutas de admin ────────────────────────────────────────────────────────
   if (ADMIN_ROUTES.some((r) => pathname.startsWith(r))) {
-    // Allow /admin/login to pass through
     if (pathname === "/admin/login") return NextResponse.next();
 
-    const payload = await verifyAdminAuth(request);
-    if (!payload) {
-      return NextResponse.redirect(new URL("/admin/login", request.url));
+    const session = await verifySession(request);
+    if (!session) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+    if (session.rol === "residente") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.next();
   }
 
-  // ── User-protected portal routes ──────────────────────────────────────────
-  if (USER_ROUTES.some((r) => pathname.startsWith(r))) {
-    const payload = await verifyAuth(request);
-    if (!payload) {
+  // ── Rutas de residente ────────────────────────────────────────────────────
+  if (RESIDENTE_ROUTES.some((r) => pathname.startsWith(r))) {
+    const session = await verifySession(request);
+    if (!session) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("from", pathname);
       return NextResponse.redirect(loginUrl);
+    }
+    if (session.rol === "admin") {
+      return NextResponse.redirect(new URL("/admin", request.url));
     }
     return NextResponse.next();
   }

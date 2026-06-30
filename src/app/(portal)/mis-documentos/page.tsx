@@ -11,6 +11,7 @@ import {
   IconFileTypePdf,
   IconEye,
   IconDownload,
+  IconLoader2,
 } from "@tabler/icons-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -118,42 +119,79 @@ const SECTIONS: Section[] = [
 // ─── Document row ──────────────────────────────────────────────────────────────
 
 function DocumentRow({ doc }: { doc: SectionDoc }) {
-  const viewUrl     = `/api/files/${doc.key}`;
-  const downloadUrl = `/api/files/${doc.key}?dl=1`;
+  const [viewLoading, setViewLoading] = useState(false);
+  const [dlLoading, setDlLoading]     = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+
+  async function openFile(dl: boolean) {
+    const setLoading = dl ? setDlLoading : setViewLoading;
+    setLoading(true);
+    setError(null);
+    try {
+      const apiUrl = dl ? `/api/files/${doc.key}?dl=1` : `/api/files/${doc.key}`;
+      const res = await fetch(apiUrl);
+      const data = await res.json().catch(() => ({})) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? "Error al obtener el archivo");
+      }
+      // Navigate directly — no CORS restriction on window.location / window.open (vs. fetch cross-origin)
+      if (dl) {
+        window.location.href = data.url;
+      } else {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al obtener el archivo");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const busy = viewLoading || dlLoading;
 
   return (
-    <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all group">
-      {/* PDF badge */}
-      <div className="w-10 h-12 bg-red-50 border border-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-        <IconFileTypePdf size={20} stroke={1.5} className="text-red-500" />
-      </div>
+    <div className="flex flex-col gap-2 p-4 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all group">
+      <div className="flex items-center gap-4">
+        {/* PDF badge */}
+        <div className="w-10 h-12 bg-red-50 border border-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+          <IconFileTypePdf size={20} stroke={1.5} className="text-red-500" />
+        </div>
 
-      {/* Name + size */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{doc.size}</p>
-      </div>
+        {/* Name + size */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{doc.size}</p>
+        </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <a
-          href={viewUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:border-[#2D5A3D]/30 hover:text-[#2D5A3D] transition-colors"
-        >
-          <IconEye size={13} stroke={1.75} />
-          <span className="hidden sm:inline">Ver</span>
-        </a>
-        <a
-          href={downloadUrl}
-          download
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2D5A3D] text-white text-xs font-medium hover:bg-[#4a8060] transition-colors"
-        >
-          <IconDownload size={13} stroke={1.75} />
-          <span className="hidden sm:inline">Descargar</span>
-        </a>
+        {/* Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => openFile(false)}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:border-[#2D5A3D]/30 hover:text-[#2D5A3D] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            {viewLoading
+              ? <IconLoader2 size={13} stroke={1.75} className="animate-spin" />
+              : <IconEye size={13} stroke={1.75} />
+            }
+            <span className="hidden sm:inline">{viewLoading ? "..." : "Ver"}</span>
+          </button>
+          <button
+            onClick={() => openFile(true)}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2D5A3D] text-white text-xs font-medium hover:bg-[#4a8060] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            {dlLoading
+              ? <IconLoader2 size={13} stroke={1.75} className="animate-spin" />
+              : <IconDownload size={13} stroke={1.75} />
+            }
+            <span className="hidden sm:inline">{dlLoading ? "..." : "Descargar"}</span>
+          </button>
+        </div>
       </div>
+      {error && (
+        <p className="text-xs text-red-500 pl-14">{error}</p>
+      )}
     </div>
   );
 }
