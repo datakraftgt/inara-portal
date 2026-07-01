@@ -36,10 +36,22 @@ export async function crearCaso(params: CasoParams): Promise<CasoResponse> {
     body.append("archivos", archivo, archivo.name);
   }
 
+  console.log("[CRM] POST", `${crmApiUrl}/caso/crearcaso`);
+  console.log("[CRM] Fields →", {
+    titulo:          params.titulo,
+    observaciones:   params.observaciones,
+    proyecto:        CRM_CONFIG.proyecto,
+    ubicacion:       params.ubicacion,
+    medioDelReclamo: CRM_CONFIG.medioDelReclamo,
+    archivos:        params.archivos.map(f => `${f.name} (${f.size}b)`),
+  });
+
   const response = await fetch(`${crmApiUrl}/caso/crearcaso`, {
     method: "POST",
     body,
   });
+
+  console.log("[CRM] HTTP status:", response.status);
 
   let json: Record<string, unknown>;
   try {
@@ -48,24 +60,39 @@ export async function crearCaso(params: CasoParams): Promise<CasoResponse> {
     throw new Error(`Respuesta no-JSON del CRM (HTTP ${response.status})`);
   }
 
-  if (json.success === true) {
-    const raw = json.data as Record<string, unknown> | undefined;
+  console.log("[CRM] Response body:", JSON.stringify(json, null, 2));
+
+  // COMOSA responde con PascalCase (Success, Message, Errors) pero también
+  // admitimos lowercase por si cambian la versión del API.
+  const isSuccess = (json.Success ?? json.success) === true;
+
+  if (isSuccess) {
+    const raw = (json.Data ?? json.data) as Record<string, unknown> | undefined;
     return {
       success: true,
-      message: json.message as string | undefined,
+      message: (json.Message ?? json.message) as string | undefined,
       data: raw
-        ? { id: raw.id as string | number, numeroCaso: raw.numeroCaso as string }
-        : { id: json.id as string | number, numeroCaso: json.numeroCaso as string },
-      errors: json.errors as string[] | undefined,
+        ? { id: raw.Id ?? raw.id as string | number, numeroCaso: (raw.NumeroCaso ?? raw.numeroCaso) as string }
+        : { id: (json.Id ?? json.id) as string | number, numeroCaso: (json.NumeroCaso ?? json.numeroCaso) as string },
+      errors: (json.Errors ?? json.errors) as string[] | undefined,
     };
   }
+
+  const errors = (json.Errors ?? json.errors) as Array<{ ErrorMessage?: string; errorMessage?: string } | string> | undefined;
+  const firstError = Array.isArray(errors) && errors.length > 0
+    ? (typeof errors[0] === "string" ? errors[0] : (errors[0].ErrorMessage ?? errors[0].errorMessage))
+    : undefined;
 
   return {
     success: false,
     message:
+      firstError ??
+      (json.Message as string | undefined) ??
       (json.mensaje as string | undefined) ??
       (json.message as string | undefined) ??
       "Error al crear el reclamo",
-    errors: json.errors as string[] | undefined,
+    errors: Array.isArray(errors)
+      ? errors.map(e => typeof e === "string" ? e : (e.ErrorMessage ?? e.errorMessage ?? ""))
+      : undefined,
   };
 }

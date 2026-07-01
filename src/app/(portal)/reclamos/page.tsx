@@ -160,19 +160,32 @@ export default function ReclamosPage() {
     setFormErrors({});
     setSubmitting(true);
 
-    // COMOSA API fields
     const tituloFinal        = `${tipoProblem}: ${titulo.trim()}`;
     const observacionesFinal = `Área afectada: ${areaAfectada}\n\n${observaciones.trim()}`;
-    // TODO: POST { titulo: tituloFinal, observaciones: observacionesFinal } + files as FormData to COMOSA API
 
-    void observacionesFinal; // used when API is wired
+    const fd = new FormData();
+    fd.append("titulo",        tituloFinal);
+    fd.append("observaciones", observacionesFinal);
+    fd.append("categoria",     tipoProblem);
+    fd.append("area",          areaAfectada);
+    for (const f of files) fd.append("archivos", f);
 
-    // Simulate API latency
-    await new Promise(r => setTimeout(r, 1500));
+    let json: Record<string, unknown>;
+    try {
+      const res = await fetch("/api/reclamos", { method: "POST", body: fd });
+      json = await res.json() as Record<string, unknown>;
+      if (!res.ok) {
+        setFormErrors({ titulo: (json.error as string) ?? "Error al enviar el reclamo" });
+        setSubmitting(false);
+        return;
+      }
+    } catch {
+      setFormErrors({ titulo: "No se pudo conectar con el servidor" });
+      setSubmitting(false);
+      return;
+    }
 
-    // Mock CRM response
-    const nextNum    = 155 + historial.length;
-    const numeroCaso = `CAS-${String(nextNum).padStart(6, "0")}`;
+    const numeroCaso = (json.numeroCaso as string) ?? "";
 
     setSuccess(numeroCaso);
     setHistorial(prev => [
