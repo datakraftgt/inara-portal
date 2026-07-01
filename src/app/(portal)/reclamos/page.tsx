@@ -47,23 +47,6 @@ const STATUS_CONFIG: Record<Estado, { cls: string; Icon: typeof IconClock }> = {
   Cerrado:        { cls: "bg-gray-100 text-gray-600",   Icon: IconX },
 };
 
-const INITIAL_HISTORIAL: Reclamo[] = [
-  {
-    id: "h1",
-    numeroCaso: "CAS-000154",
-    titulo: "Garantía de construcción: Fuga en tubería del baño principal",
-    fecha: "12 jun 2026",
-    estado: "Pendiente",
-  },
-  {
-    id: "h2",
-    numeroCaso: "CAS-000147",
-    titulo: "Garantía de construcción: Grieta en pared del dormitorio 2",
-    fecha: "03 may 2026",
-    estado: "En revisión",
-  },
-];
-
 const MAX_FILES     = 5;
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
 
@@ -99,7 +82,6 @@ export default function ReclamosPage() {
   // History
   const [historial,        setHistorial]        = useState<Reclamo[]>([]);
   const [historialLoading, setHistorialLoading] = useState(true);
-  const [historialIsReal,  setHistorialIsReal]  = useState(false);
 
   useEffect(() => {
     async function loadReclamos() {
@@ -118,16 +100,9 @@ export default function ReclamosPage() {
             day: "numeric", month: "short", year: "numeric",
           }),
         }));
-        if (data.length > 0) {
-          setHistorial(data);
-          setHistorialIsReal(true);
-        } else {
-          setHistorial(INITIAL_HISTORIAL);
-          setHistorialIsReal(false);
-        }
+        setHistorial(data);
       } catch {
-        setHistorial(INITIAL_HISTORIAL);
-        setHistorialIsReal(false);
+        setHistorial([]);
       } finally {
         setHistorialLoading(false);
       }
@@ -234,9 +209,7 @@ export default function ReclamosPage() {
     const newEntry: Reclamo = {
       id: numeroCaso, numeroCaso, titulo: tituloFinal, fecha: todayLabel(), estado: "Pendiente",
     };
-    // Si el historial actual son datos reales, prepend; si son mocks de fallback, reemplazar
-    setHistorial(prev => historialIsReal ? [newEntry, ...prev] : [newEntry]);
-    setHistorialIsReal(true);
+    setHistorial(prev => [newEntry, ...prev]);
 
     // Reset
     setTipoProblem(""); setTitulo(""); setAreaAfectada(""); setObservaciones(""); setFiles([]);
