@@ -35,6 +35,62 @@ function getExtension(filename: string): string {
   return filename.split(".").pop()?.toLowerCase() ?? "";
 }
 
+// ── GET /api/reclamos — historial del residente autenticado ──────────────────
+
+function mapEstado(estadoCrm: string): string {
+  switch (estadoCrm.toLowerCase()) {
+    case "enviado":
+    case "pendiente":
+      return "Pendiente";
+    case "en_revision":
+    case "en revisión":
+    case "en revision":
+      return "En revisión";
+    case "resuelto":
+      return "Resuelto";
+    case "cerrado":
+      return "Cerrado";
+    default:
+      return "Pendiente";
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const user = await verifyAuth(request);
+  if (!user) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  try {
+    const result = await pool.query<{
+      id: number;
+      numero_caso: string;
+      titulo: string;
+      estado_crm: string;
+      created_at: string;
+    }>(
+      `SELECT id, numero_caso, titulo, estado_crm, created_at
+         FROM reclamos_respaldo
+        WHERE apartamento_id = $1
+        ORDER BY created_at DESC`,
+      [user.apartamentoId]
+    );
+
+    const reclamos = result.rows.map(row => ({
+      id:         String(row.id),
+      numeroCaso: row.numero_caso,
+      titulo:     row.titulo,
+      estado:     mapEstado(row.estado_crm),
+      createdAt:  row.created_at,
+    }));
+
+    return NextResponse.json({ reclamos });
+  } catch (err) {
+    console.error("Error consultando reclamos_respaldo:", err);
+    return NextResponse.json({ error: "Error al obtener reclamos" }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   // ── (a) Autenticación ──────────────────────────────────────────────────────
   const user = await verifyAuth(request);

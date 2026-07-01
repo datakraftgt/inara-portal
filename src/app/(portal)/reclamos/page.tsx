@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, type FormEvent, type DragEvent } from "react";
+import { useState, useRef, useEffect, type FormEvent, type DragEvent } from "react";
 import {
   IconCloudUpload,
   IconFileTypePdf,
@@ -97,9 +97,44 @@ export default function ReclamosPage() {
   const [success,    setSuccess]    = useState<string | null>(null);
 
   // History
-  const [historial, setHistorial] = useState<Reclamo[]>(INITIAL_HISTORIAL);
+  const [historial,        setHistorial]        = useState<Reclamo[]>([]);
+  const [historialLoading, setHistorialLoading] = useState(true);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    async function loadReclamos() {
+      try {
+        const res = await fetch("/api/reclamos");
+        if (!res.ok) throw new Error("response not ok");
+        const json = await res.json() as {
+          reclamos: Array<{ id: string; numeroCaso: string; titulo: string; estado: string; createdAt: string }>;
+        };
+        const data: Reclamo[] = json.reclamos.map(r => ({
+          id:         r.id,
+          numeroCaso: r.numeroCaso,
+          titulo:     r.titulo,
+          estado:     r.estado as Estado,
+          fecha:      new Date(r.createdAt).toLocaleDateString("es-GT", {
+            day: "numeric", month: "short", year: "numeric",
+          }),
+        }));
+        setHistorial(data.length ? data : INITIAL_HISTORIAL);
+      } catch {
+        setHistorial(INITIAL_HISTORIAL);
+      } finally {
+        setHistorialLoading(false);
+      }
+    }
+    void loadReclamos();
+  }, []);
+
+  const fileInputRef    = useRef<HTMLInputElement>(null);
+  const successBannerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (success) {
+      successBannerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [success]);
 
   // ── File handling ──────────────────────────────────────────────────────────
 
@@ -218,12 +253,14 @@ export default function ReclamosPage() {
 
               {/* Success banner */}
               {success && (
-                <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+                <div ref={successBannerRef} className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
                   <IconCircleCheck size={18} stroke={2} className="text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-green-800">Reclamo enviado exitosamente</p>
+                    <p className="text-sm font-semibold text-green-800">
+                      Reclamo enviado exitosamente — Número de caso: <span className="font-bold">{success}</span>
+                    </p>
                     <p className="text-xs text-green-600 mt-0.5">
-                      Número de caso: <strong>{success}</strong> — recibirás seguimiento por correo electrónico.
+                      Puedes ver el estado de tu reclamo en el historial de reclamos a la derecha.
                     </p>
                   </div>
                   <button type="button" onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 flex-shrink-0">
@@ -404,6 +441,12 @@ export default function ReclamosPage() {
               </div>
 
               {/* Submit */}
+              {submitting && (
+                <p className="flex items-center justify-center gap-2 text-xs text-amber-700 text-center bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                  <IconLoader2 size={13} stroke={2} className="animate-spin flex-shrink-0" />
+                  Enviando tu reclamo, por favor espera y no presiones el botón nuevamente...
+                </p>
+              )}
               <button
                 type="submit"
                 disabled={submitting}
@@ -423,11 +466,24 @@ export default function ReclamosPage() {
             <div className="px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-900">Historial de reclamos</h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                {historial.length} caso{historial.length !== 1 ? "s" : ""} registrado{historial.length !== 1 ? "s" : ""}
+                {historialLoading
+                  ? "Cargando..."
+                  : `${historial.length} caso${historial.length !== 1 ? "s" : ""} registrado${historial.length !== 1 ? "s" : ""}`
+                }
               </p>
             </div>
 
-            {historial.length === 0 ? (
+            {historialLoading ? (
+              <div className="px-5 py-8 flex flex-col gap-3">
+                {[1, 2].map(n => (
+                  <div key={n} className="animate-pulse space-y-2">
+                    <div className="h-3 w-24 bg-gray-100 rounded" />
+                    <div className="h-3 w-full bg-gray-100 rounded" />
+                    <div className="h-2.5 w-16 bg-gray-100 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : historial.length === 0 ? (
               <div className="px-5 py-12 text-center">
                 <p className="text-sm text-gray-400">Aún no tienes reclamos registrados.</p>
               </div>
