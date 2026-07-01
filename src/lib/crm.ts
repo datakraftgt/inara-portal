@@ -72,7 +72,7 @@ export async function crearCaso(params: CasoParams): Promise<CasoResponse> {
       success: true,
       message: (json.Message ?? json.message) as string | undefined,
       data: raw
-        ? { id: raw.Id ?? raw.id as string | number, numeroCaso: (raw.NumeroCaso ?? raw.numeroCaso) as string }
+        ? { id: (raw.Id ?? raw.id) as string | number, numeroCaso: (raw.NumeroCaso ?? raw.numeroCaso) as string }
         : { id: (json.Id ?? json.id) as string | number, numeroCaso: (json.NumeroCaso ?? json.numeroCaso) as string },
       errors: (json.Errors ?? json.errors) as string[] | undefined,
     };
