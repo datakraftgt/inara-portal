@@ -99,6 +99,7 @@ export default function ReclamosPage() {
   // History
   const [historial,        setHistorial]        = useState<Reclamo[]>([]);
   const [historialLoading, setHistorialLoading] = useState(true);
+  const [historialIsReal,  setHistorialIsReal]  = useState(false);
 
   useEffect(() => {
     async function loadReclamos() {
@@ -117,9 +118,16 @@ export default function ReclamosPage() {
             day: "numeric", month: "short", year: "numeric",
           }),
         }));
-        setHistorial(data.length ? data : INITIAL_HISTORIAL);
+        if (data.length > 0) {
+          setHistorial(data);
+          setHistorialIsReal(true);
+        } else {
+          setHistorial(INITIAL_HISTORIAL);
+          setHistorialIsReal(false);
+        }
       } catch {
         setHistorial(INITIAL_HISTORIAL);
+        setHistorialIsReal(false);
       } finally {
         setHistorialLoading(false);
       }
@@ -223,10 +231,12 @@ export default function ReclamosPage() {
     const numeroCaso = (json.numeroCaso as string) ?? "";
 
     setSuccess(numeroCaso);
-    setHistorial(prev => [
-      { id: numeroCaso, numeroCaso, titulo: tituloFinal, fecha: todayLabel(), estado: "Pendiente" },
-      ...prev,
-    ]);
+    const newEntry: Reclamo = {
+      id: numeroCaso, numeroCaso, titulo: tituloFinal, fecha: todayLabel(), estado: "Pendiente",
+    };
+    // Si el historial actual son datos reales, prepend; si son mocks de fallback, reemplazar
+    setHistorial(prev => historialIsReal ? [newEntry, ...prev] : [newEntry]);
+    setHistorialIsReal(true);
 
     // Reset
     setTipoProblem(""); setTitulo(""); setAreaAfectada(""); setObservaciones(""); setFiles([]);
