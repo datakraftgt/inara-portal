@@ -23,6 +23,9 @@ type Reclamo = {
   titulo: string;
   fecha: string;
   estado: Estado;
+  area?: string;
+  observaciones?: string;
+  archivosUrls?: string[];
 };
 
 type FormErrors = Partial<Record<"tipoProblem" | "titulo" | "areaAfectada" | "observaciones" | "files", string>>;
@@ -82,6 +85,7 @@ export default function ReclamosPage() {
   // History
   const [historial,        setHistorial]        = useState<Reclamo[]>([]);
   const [historialLoading, setHistorialLoading] = useState(true);
+  const [drawerReclamo,    setDrawerReclamo]    = useState<Reclamo | null>(null);
 
   useEffect(() => {
     async function loadReclamos() {
@@ -89,16 +93,22 @@ export default function ReclamosPage() {
         const res = await fetch("/api/reclamos");
         if (!res.ok) throw new Error("response not ok");
         const json = await res.json() as {
-          reclamos: Array<{ id: string; numeroCaso: string; titulo: string; estado: string; createdAt: string }>;
+          reclamos: Array<{
+            id: string; numeroCaso: string; titulo: string; estado: string; createdAt: string;
+            area?: string; observaciones?: string; archivosUrls?: string[];
+          }>;
         };
         const data: Reclamo[] = json.reclamos.map(r => ({
-          id:         r.id,
-          numeroCaso: r.numeroCaso,
-          titulo:     r.titulo,
-          estado:     r.estado as Estado,
-          fecha:      new Date(r.createdAt).toLocaleDateString("es-GT", {
+          id:           r.id,
+          numeroCaso:   r.numeroCaso,
+          titulo:       r.titulo,
+          estado:       r.estado as Estado,
+          fecha:        new Date(r.createdAt).toLocaleDateString("es-GT", {
             day: "numeric", month: "short", year: "numeric",
           }),
+          area:         r.area,
+          observaciones: r.observaciones,
+          archivosUrls: r.archivosUrls,
         }));
         setHistorial(data);
       } catch {
@@ -207,7 +217,13 @@ export default function ReclamosPage() {
 
     setSuccess(numeroCaso);
     const newEntry: Reclamo = {
-      id: numeroCaso, numeroCaso, titulo: tituloFinal, fecha: todayLabel(), estado: "Pendiente",
+      id:            numeroCaso,
+      numeroCaso,
+      titulo:        tituloFinal,
+      fecha:         todayLabel(),
+      estado:        "Pendiente",
+      area:          areaAfectada,
+      observaciones: observaciones.trim(),
     };
     setHistorial(prev => [newEntry, ...prev]);
 
@@ -475,21 +491,26 @@ export default function ReclamosPage() {
                 {historial.map((r, idx) => {
                   const cfg = STATUS_CONFIG[r.estado];
                   return (
-                    <li
-                      key={r.id}
-                      className={`px-5 py-4 ${idx < historial.length - 1 ? "border-b border-gray-100" : ""}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-mono font-semibold text-[#2D5A3D]">{r.numeroCaso}</p>
-                          <p className="text-sm text-gray-800 mt-0.5 leading-snug line-clamp-2">{r.titulo}</p>
-                          <p className="text-xs text-gray-400 mt-1">{r.fecha}</p>
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        onClick={() => setDrawerReclamo(r)}
+                        className={`w-full text-left px-5 py-4 hover:bg-gray-50 active:bg-gray-100 transition-colors ${
+                          idx < historial.length - 1 ? "border-b border-gray-100" : ""
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-mono font-semibold text-[#2D5A3D]">{r.numeroCaso}</p>
+                            <p className="text-sm text-gray-800 mt-0.5 leading-snug line-clamp-2">{r.titulo}</p>
+                            <p className="text-xs text-gray-400 mt-1">{r.fecha}</p>
+                          </div>
+                          <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${cfg.cls}`}>
+                            <cfg.Icon size={11} stroke={2} />
+                            {r.estado}
+                          </span>
                         </div>
-                        <span className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${cfg.cls}`}>
-                          <cfg.Icon size={11} stroke={2} />
-                          {r.estado}
-                        </span>
-                      </div>
+                      </button>
                     </li>
                   );
                 })}
@@ -499,6 +520,12 @@ export default function ReclamosPage() {
 
         </div>
       </div>
+      {drawerReclamo && (
+        <ReclamoDrawer
+          reclamo={drawerReclamo}
+          onClose={() => setDrawerReclamo(null)}
+        />
+      )}
     </main>
   );
 }
@@ -529,4 +556,137 @@ function inputCls(hasError: boolean): string {
       ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100"
       : "border-gray-200 focus:border-[#2D5A3D]/50 focus:ring-2 focus:ring-[#2D5A3D]/10",
   ].join(" ");
+}
+
+// ─── Drawer ───────────────────────────────────────────────────────────────────
+
+function ReclamoDrawer({ reclamo, onClose }: { reclamo: Reclamo; onClose: () => void }) {
+  const [visible, setVisible] = useState(false);
+  const touchStartX = useRef(0);
+
+  // Animate in one tick after mount so the CSS transition fires
+  useEffect(() => {
+    const id = setTimeout(() => setVisible(true), 10);
+    return () => clearTimeout(id);
+  }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  // Lock body scroll while open
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const cfg = STATUS_CONFIG[reclamo.estado];
+
+  // Strip the "Área afectada: X\n\n" prefix that is prepended when saving to DB
+  const cleanObs = reclamo.observaciones
+    ? reclamo.observaciones.replace(/^Área afectada:[^\n]*\n\n/, "").trim()
+    : "";
+
+  return (
+    <>
+      {/* Overlay */}
+      <div
+        aria-hidden="true"
+        onClick={onClose}
+        className={`fixed inset-0 bg-black/40 z-40 transition-opacity duration-300 ${
+          visible ? "opacity-100" : "opacity-0"
+        }`}
+      />
+
+      {/* Drawer panel */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Detalle del reclamo ${reclamo.numeroCaso}`}
+        onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={e => {
+          if (e.changedTouches[0].clientX - touchStartX.current > 80) onClose();
+        }}
+        className={`fixed right-0 top-0 h-full w-full sm:w-[420px] bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
+          visible ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-100 flex-shrink-0">
+          <div className="min-w-0">
+            <p className="text-xs font-mono font-bold text-[#2D5A3D] tracking-wider">{reclamo.numeroCaso}</p>
+            <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full mt-2 ${cfg.cls}`}>
+              <cfg.Icon size={11} stroke={2} />
+              {reclamo.estado}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0 mt-0.5 p-1 -mr-1 rounded-lg hover:bg-gray-100"
+          >
+            <IconX size={20} stroke={2} />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+
+          <section>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Título</p>
+            <p className="text-sm text-gray-800 leading-relaxed">{reclamo.titulo}</p>
+          </section>
+
+          {reclamo.area && (
+            <section>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Área afectada</p>
+              <p className="text-sm text-gray-800">{reclamo.area}</p>
+            </section>
+          )}
+
+          {cleanObs && (
+            <section>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Observaciones</p>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{cleanObs}</p>
+            </section>
+          )}
+
+          <section>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Fecha de envío</p>
+            <p className="text-sm text-gray-800">{reclamo.fecha}</p>
+          </section>
+
+          <section>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Archivos adjuntos</p>
+            {reclamo.archivosUrls && reclamo.archivosUrls.length > 0 ? (
+              <ul className="space-y-2">
+                {reclamo.archivosUrls.map((url, i) => (
+                  <li key={i}>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-[#2D5A3D] hover:underline"
+                    >
+                      <IconFile size={14} stroke={1.75} className="flex-shrink-0" />
+                      Archivo {i + 1}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-400">Ver archivos adjuntos</p>
+            )}
+          </section>
+
+        </div>
+      </div>
+    </>
+  );
 }

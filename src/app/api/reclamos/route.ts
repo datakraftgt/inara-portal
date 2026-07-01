@@ -68,8 +68,11 @@ export async function GET(request: NextRequest) {
       titulo: string;
       estado_crm: string;
       created_at: string;
+      area: string | null;
+      observaciones: string | null;
+      archivos_urls: string[] | null;
     }>(
-      `SELECT id, numero_caso, titulo, estado_crm, created_at
+      `SELECT id, numero_caso, titulo, estado_crm, created_at, area, observaciones, archivos_urls
          FROM reclamos_respaldo
         WHERE apartamento_id = $1
         ORDER BY created_at DESC`,
@@ -77,11 +80,14 @@ export async function GET(request: NextRequest) {
     );
 
     const reclamos = result.rows.map(row => ({
-      id:         String(row.id),
-      numeroCaso: row.numero_caso,
-      titulo:     row.titulo,
-      estado:     mapEstado(row.estado_crm),
-      createdAt:  row.created_at,
+      id:           String(row.id),
+      numeroCaso:   row.numero_caso,
+      titulo:       row.titulo,
+      estado:       mapEstado(row.estado_crm),
+      createdAt:    row.created_at,
+      area:         row.area ?? undefined,
+      observaciones: row.observaciones ?? undefined,
+      archivosUrls: row.archivos_urls ?? undefined,
     }));
 
     return NextResponse.json({ reclamos });
