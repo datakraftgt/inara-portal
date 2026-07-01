@@ -299,9 +299,10 @@ function ClaimsSection({ claims }: { claims: Claim[] }) {
           claims.map((claim, idx) => {
             const cfg = STATUS_CONFIG[claim.estado];
             return (
-              <div
+              <Link
                 key={claim.id}
-                className={`flex items-center gap-4 px-5 py-4 ${
+                href="/reclamos"
+                className={`flex items-center gap-4 px-5 py-4 border-l-2 border-l-transparent hover:border-l-[#2D5A3D] hover:bg-gray-50 transition-all ${
                   idx < claims.length - 1 ? "border-b border-gray-100" : ""
                 }`}
               >
@@ -325,7 +326,7 @@ function ClaimsSection({ claims }: { claims: Claim[] }) {
                   </span>
                   <span className="text-[11px] text-gray-400">{claim.fecha}</span>
                 </div>
-              </div>
+              </Link>
             );
           })
         )}
@@ -353,7 +354,7 @@ export default async function DashboardPage() {
          FROM reclamos_respaldo
         WHERE apartamento_id = $1
         ORDER BY created_at DESC
-        LIMIT 2`,
+        LIMIT 3`,
       [user.apartamentoId]
     );
     recentClaims = result.rows.map(r => ({
