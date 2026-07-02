@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type FormEvent, type DragEvent } from "react";
+import { useState, useRef, useEffect, useCallback, type FormEvent, type DragEvent } from "react";
 import {
   IconCloudUpload,
   IconFileTypePdf,
@@ -60,12 +60,6 @@ function formatSize(bytes: number): string {
   return `${Math.round(bytes / 1024)} KB`;
 }
 
-function todayLabel(): string {
-  return new Date().toLocaleDateString("es-GT", {
-    day: "numeric", month: "short", year: "numeric",
-  });
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ReclamosPage() {
@@ -87,38 +81,39 @@ export default function ReclamosPage() {
   const [historialLoading, setHistorialLoading] = useState(true);
   const [drawerReclamo,    setDrawerReclamo]    = useState<Reclamo | null>(null);
 
-  useEffect(() => {
-    async function loadReclamos() {
-      try {
-        const res = await fetch("/api/reclamos");
-        if (!res.ok) throw new Error("response not ok");
-        const json = await res.json() as {
-          reclamos: Array<{
-            id: string; numeroCaso: string; titulo: string; estado: string; createdAt: string;
-            area?: string; observaciones?: string; archivosUrls?: string[];
-          }>;
-        };
-        const data: Reclamo[] = json.reclamos.map(r => ({
-          id:           r.id,
-          numeroCaso:   r.numeroCaso,
-          titulo:       r.titulo,
-          estado:       r.estado as Estado,
-          fecha:        new Date(r.createdAt).toLocaleDateString("es-GT", {
-            day: "numeric", month: "short", year: "numeric",
-          }),
-          area:         r.area,
-          observaciones: r.observaciones,
-          archivosUrls: r.archivosUrls,
-        }));
-        setHistorial(data);
-      } catch {
-        setHistorial([]);
-      } finally {
-        setHistorialLoading(false);
-      }
+  const loadReclamos = useCallback(async () => {
+    try {
+      const res = await fetch("/api/reclamos");
+      if (!res.ok) throw new Error("response not ok");
+      const json = await res.json() as {
+        reclamos: Array<{
+          id: string; numeroCaso: string; titulo: string; estado: string; createdAt: string;
+          area?: string; observaciones?: string; archivosUrls?: string[];
+        }>;
+      };
+      const data: Reclamo[] = json.reclamos.map(r => ({
+        id:           r.id,
+        numeroCaso:   r.numeroCaso,
+        titulo:       r.titulo,
+        estado:       r.estado as Estado,
+        fecha:        new Date(r.createdAt).toLocaleDateString("es-GT", {
+          day: "numeric", month: "short", year: "numeric",
+        }),
+        area:         r.area,
+        observaciones: r.observaciones,
+        archivosUrls: r.archivosUrls,
+      }));
+      setHistorial(data);
+    } catch {
+      // Si el refetch falla se conserva el historial actual (vacío en la carga inicial)
+    } finally {
+      setHistorialLoading(false);
     }
-    void loadReclamos();
   }, []);
+
+  useEffect(() => {
+    void loadReclamos();
+  }, [loadReclamos]);
 
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const successBannerRef = useRef<HTMLDivElement>(null);
@@ -216,16 +211,7 @@ export default function ReclamosPage() {
     const numeroCaso = (json.numeroCaso as string) ?? "";
 
     setSuccess(numeroCaso);
-    const newEntry: Reclamo = {
-      id:            numeroCaso,
-      numeroCaso,
-      titulo:        tituloFinal,
-      fecha:         todayLabel(),
-      estado:        "Pendiente",
-      area:          areaAfectada,
-      observaciones: observaciones.trim(),
-    };
-    setHistorial(prev => [newEntry, ...prev]);
+    await loadReclamos();
 
     // Reset
     setTipoProblem(""); setTitulo(""); setAreaAfectada(""); setObservaciones(""); setFiles([]);
