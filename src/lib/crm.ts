@@ -67,13 +67,17 @@ export async function crearCaso(params: CasoParams): Promise<CasoResponse> {
   const isSuccess = (json.Success ?? json.success) === true;
 
   if (isSuccess) {
-    const raw = (json.Data ?? json.data) as Record<string, unknown> | undefined;
+    const raw = (json.Data ?? json.data ?? json) as Record<string, unknown>;
+    // El CRM devuelve el número de caso como ggt_NoCaso (campo de Dynamics);
+    // NumeroCaso/numeroCaso se mantienen por si cambian la versión del API.
+    const numeroCaso = (raw.ggt_NoCaso ?? raw.NumeroCaso ?? raw.numeroCaso ?? "") as string;
     return {
       success: true,
       message: (json.Message ?? json.message) as string | undefined,
-      data: raw
-        ? { id: (raw.Id ?? raw.id) as string | number, numeroCaso: (raw.NumeroCaso ?? raw.numeroCaso) as string }
-        : { id: (json.Id ?? json.id) as string | number, numeroCaso: (json.NumeroCaso ?? json.numeroCaso) as string },
+      data: {
+        id: (raw.Id ?? raw.id) as string | number,
+        numeroCaso,
+      },
       errors: (json.Errors ?? json.errors) as string[] | undefined,
     };
   }
