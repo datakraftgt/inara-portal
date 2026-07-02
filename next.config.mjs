@@ -22,7 +22,9 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://*.digitaloceanspaces.com",
-      "connect-src 'self'",
+      // Spaces en connect-src: los adjuntos de reclamos se suben con fetch PUT
+      // directo del browser al bucket (presigned URLs).
+      "connect-src 'self' https://*.digitaloceanspaces.com",
       "frame-ancestors 'none'",
       "object-src 'none'",
       "base-uri 'self'",
