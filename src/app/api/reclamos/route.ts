@@ -1,39 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/lib/auth";
 import { crearCaso } from "@/lib/crm";
-import { uploadFile, reclamoKey } from "@/lib/storage";
+import { getFileBuffer, publicUrl } from "@/lib/storage";
+import { MAX_FILES, MAX_FILE_SIZE } from "@/lib/reclamos-validation";
 import pool from "@/lib/db";
-
-const MAX_FILES = 5;
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
-
-const ALLOWED_EXTENSIONS = new Set([
-  "pdf", "docx", "xlsx",
-  "png", "jpg", "jpeg",
-  "txt",
-  "mp4", "mov", "avi", "wmv", "mkv", "webm",
-]);
-
-// MIME types allowed per extension — extension alone can be spoofed
-const ALLOWED_MIMES: Record<string, string[]> = {
-  pdf:  ["application/pdf"],
-  docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
-  xlsx: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-  png:  ["image/png"],
-  jpg:  ["image/jpeg"],
-  jpeg: ["image/jpeg"],
-  txt:  ["text/plain"],
-  mp4:  ["video/mp4"],
-  mov:  ["video/quicktime"],
-  avi:  ["video/x-msvideo", "video/avi"],
-  wmv:  ["video/x-ms-wmv"],
-  mkv:  ["video/x-matroska"],
-  webm: ["video/webm"],
-};
-
-function getExtension(filename: string): string {
-  return filename.split(".").pop()?.toLowerCase() ?? "";
-}
 
 // ── GET /api/reclamos — historial del residente autenticado ──────────────────
 
@@ -104,17 +74,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  let formData: FormData;
+  // Los archivos ya fueron subidos por el browser directo a Spaces con las
+  // presigned URLs de /api/reclamos/upload-url; aquí solo llegan sus keys.
+  let body: {
+    titulo?: unknown; observaciones?: unknown; categoria?: unknown; area?: unknown;
+    archivos?: Array<{ key?: unknown; name?: unknown }>;
+  };
   try {
-    formData = await request.formData();
+    body = await request.json();
   } catch {
-    return NextResponse.json({ error: "FormData inválido" }, { status: 400 });
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
   }
 
-  const titulo       = (formData.get("titulo")       as string | null) ?? "";
-  const observaciones= (formData.get("observaciones") as string | null) ?? "";
-  const categoria    = (formData.get("categoria")     as string | null) ?? "";
-  const area         = (formData.get("area")          as string | null) ?? "";
+  const titulo        = typeof body.titulo        === "string" ? body.titulo        : "";
+  const observaciones = typeof body.observaciones === "string" ? body.observaciones : "";
+  const categoria     = typeof body.categoria     === "string" ? body.categoria     : "";
+  const area          = typeof body.area          === "string" ? body.area          : "";
 
   if (!titulo) {
     return NextResponse.json({ error: "El título es requerido" }, { status: 400 });
@@ -126,35 +101,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Las observaciones no pueden superar 2000 caracteres" }, { status: 400 });
   }
 
-  const archivos = formData.getAll("archivos") as File[];
+  const archivosMeta = Array.isArray(body.archivos) ? body.archivos : [];
 
-  if (archivos.length > MAX_FILES) {
+  if (archivosMeta.length > MAX_FILES) {
     return NextResponse.json(
       { error: `Se permiten máximo ${MAX_FILES} archivos` },
       { status: 400 }
     );
   }
-  for (const archivo of archivos) {
-    if (archivo.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: `El archivo "${archivo.name}" supera el límite de 100 MB` },
-        { status: 400 }
-      );
+
+  // Solo se aceptan keys bajo el prefijo temporal del propio apartamento, para
+  // que un usuario no pueda referenciar archivos de otros reclamos.
+  const ownPrefix = `reclamos/tmp-${user.apartamentoId}-`;
+  const archivosRef: Array<{ key: string; name: string }> = [];
+  for (const a of archivosMeta) {
+    const key  = typeof a.key  === "string" ? a.key  : "";
+    const name = typeof a.name === "string" ? a.name : "";
+    if (!key.startsWith(ownPrefix) || !name) {
+      return NextResponse.json({ error: "Referencia de archivo inválida" }, { status: 400 });
     }
-    const ext = getExtension(archivo.name);
-    if (!ALLOWED_EXTENSIONS.has(ext)) {
-      return NextResponse.json(
-        { error: `El formato del archivo "${archivo.name}" no está permitido` },
-        { status: 400 }
-      );
-    }
-    const mime = archivo.type.toLowerCase().split(";")[0].trim();
-    if (!ALLOWED_MIMES[ext]?.includes(mime)) {
-      return NextResponse.json(
-        { error: `El tipo del archivo "${archivo.name}" no coincide con su extensión` },
-        { status: 400 }
-      );
-    }
+    archivosRef.push({ key, name });
   }
 
   if (!process.env.CRM_API_URL) {
@@ -182,22 +148,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Error de configuración del servidor" }, { status: 500 });
   }
 
-  // ── (c) Subir archivos a Spaces con key temporal ───────────────────────────
-  // Usamos un ID temporal hasta que el CRM asigne el numeroCaso real.
-  const tempId   = `tmp-${user.apartamentoId}-${Date.now()}`;
+  // ── (c) Descargar los archivos ya subidos a Spaces para reenviarlos al CRM ──
+  const archivos: File[] = [];
   const spacesUrls: string[] = [];
 
-  for (const archivo of archivos) {
+  for (const ref of archivosRef) {
     try {
-      const buffer      = Buffer.from(await archivo.arrayBuffer());
-      const key         = reclamoKey(tempId, archivo.name);
-      const url         = await uploadFile(key, buffer, archivo.type || "application/octet-stream");
-      spacesUrls.push(url);
+      const { buffer, contentType, size } = await getFileBuffer(ref.key);
+      if (size > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          { error: `El archivo "${ref.name}" supera el límite de 100 MB` },
+          { status: 400 }
+        );
+      }
+      archivos.push(new File([new Uint8Array(buffer)], ref.name, { type: contentType }));
+      spacesUrls.push(publicUrl(ref.key));
     } catch (err) {
-      console.error("Error subiendo archivo a Spaces:", err);
+      console.error("Error leyendo archivo desde Spaces:", err);
       return NextResponse.json(
-        { error: `No se pudo subir el archivo "${archivo.name}"` },
-        { status: 500 }
+        { error: `No se encontró el archivo "${ref.name}"` },
+        { status: 400 }
       );
     }
   }

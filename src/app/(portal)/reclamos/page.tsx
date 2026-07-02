@@ -186,16 +186,58 @@ export default function ReclamosPage() {
     const tituloFinal        = `${tipoProblem}: ${titulo.trim()}`;
     const observacionesFinal = `Área afectada: ${areaAfectada}\n\n${observaciones.trim()}`;
 
-    const fd = new FormData();
-    fd.append("titulo",        tituloFinal);
-    fd.append("observaciones", observacionesFinal);
-    fd.append("categoria",     tipoProblem);
-    fd.append("area",          areaAfectada);
-    for (const f of files) fd.append("archivos", f);
-
     let json: Record<string, unknown>;
     try {
-      const res = await fetch("/api/reclamos", { method: "POST", body: fd });
+      // 1. Subir archivos directo a Spaces con presigned URLs — el body de las
+      //    funciones de Vercel está limitado a 4.5 MB, así que no pueden pasar por ahí.
+      const archivosSubidos: Array<{ key: string; name: string }> = [];
+      if (files.length > 0) {
+        const urlRes = await fetch("/api/reclamos/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            files: files.map(f => ({ name: f.name, type: f.type, size: f.size })),
+          }),
+        });
+        const urlJson = await urlRes.json() as { error?: string; uploads?: Array<{ key: string; url: string }> };
+        if (!urlRes.ok || !urlJson.uploads) {
+          setFormErrors({ files: urlJson.error ?? "No se pudieron preparar los archivos" });
+          setSubmitting(false);
+          return;
+        }
+
+        const puts = await Promise.all(
+          urlJson.uploads.map((u, i) =>
+            fetch(u.url, {
+              method: "PUT",
+              headers: { "Content-Type": files[i].type },
+              body: files[i],
+            })
+          )
+        );
+        const failedIdx = puts.findIndex(r => !r.ok);
+        if (failedIdx !== -1) {
+          setFormErrors({ files: `No se pudo subir el archivo "${files[failedIdx].name}"` });
+          setSubmitting(false);
+          return;
+        }
+        for (let i = 0; i < urlJson.uploads.length; i++) {
+          archivosSubidos.push({ key: urlJson.uploads[i].key, name: files[i].name });
+        }
+      }
+
+      // 2. Crear el reclamo con las referencias a los archivos ya subidos
+      const res = await fetch("/api/reclamos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo:        tituloFinal,
+          observaciones: observacionesFinal,
+          categoria:     tipoProblem,
+          area:          areaAfectada,
+          archivos:      archivosSubidos,
+        }),
+      });
       json = await res.json() as Record<string, unknown>;
       if (!res.ok) {
         setFormErrors({ titulo: (json.error as string) ?? "Error al enviar el reclamo" });

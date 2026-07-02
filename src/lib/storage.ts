@@ -42,6 +42,16 @@ function getBucket(): string {
 }
 
 /**
+ * URL pública (sin firma) de un objeto del Space.
+ * Los objetos privados requieren además una URL firmada para leerse.
+ */
+export function publicUrl(key: string): string {
+  const bucket = getBucket();
+  const region = process.env.DO_SPACES_REGION!;
+  return `https://${bucket}.${region}.digitaloceanspaces.com/${key}`;
+}
+
+/**
  * Sube un archivo al Space.
  * key: ruta dentro del bucket, ej. "reclamos/CAS-000154/foto.jpg"
  * Retorna la URL pública del objeto.
@@ -65,8 +75,46 @@ export async function uploadFile(
     })
   );
 
-  const region = process.env.DO_SPACES_REGION!;
-  return `https://${bucket}.${region}.digitaloceanspaces.com/${key}`;
+  return publicUrl(key);
+}
+
+/**
+ * Genera una URL firmada para que el browser suba un archivo directo al Space
+ * con PUT (evita el límite de 4.5 MB del body en funciones de Vercel).
+ * El Content-Type queda firmado: el cliente debe enviar el mismo header.
+ */
+export async function getPresignedUploadUrl(
+  key: string,
+  contentType: string,
+  expiresIn = 600
+): Promise<string> {
+  return getSignedUrl(
+    getClient(),
+    new PutObjectCommand({
+      Bucket:      getBucket(),
+      Key:         key,
+      ContentType: contentType,
+    }),
+    { expiresIn }
+  );
+}
+
+/**
+ * Descarga un objeto del Space a memoria.
+ * Lanza si el objeto no existe.
+ */
+export async function getFileBuffer(
+  key: string
+): Promise<{ buffer: Buffer; contentType: string; size: number }> {
+  const res = await getClient().send(
+    new GetObjectCommand({ Bucket: getBucket(), Key: key })
+  );
+  const bytes = await res.Body!.transformToByteArray();
+  return {
+    buffer:      Buffer.from(bytes),
+    contentType: res.ContentType ?? "application/octet-stream",
+    size:        res.ContentLength ?? bytes.length,
+  };
 }
 
 // ─── Presigned URL cache ──────────────────────────────────────────────────────
