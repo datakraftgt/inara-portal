@@ -7,6 +7,7 @@ import {
   IconFile,
   IconX,
   IconCircleCheck,
+  IconMail,
   IconClock,
   IconClockHour3,
   IconLoader2,
@@ -187,6 +188,9 @@ export default function ReclamosPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
+    // Los reclamos administrativos se atienden por correo, no por este formulario
+    if (tipoProblem === "Reclamo administrativo") return;
+
     const errors = validate();
     if (Object.keys(errors).length) { setFormErrors(errors); return; }
     setFormErrors({});
@@ -346,6 +350,32 @@ export default function ReclamosPage() {
                 {formErrors.tipoProblem && <FieldError msg={formErrors.tipoProblem} />}
               </fieldset>
 
+              {tipoProblem === "Reclamo administrativo" ? (
+
+              /* ── Aviso: reclamos administrativos se atienden por correo ── */
+              <div className="flex items-start gap-4 p-5 rounded-2xl border border-[#e8e2d9] bg-[#f7f4f0]">
+                <div className="w-10 h-10 rounded-full bg-[#2D5A3D]/10 flex items-center justify-center flex-shrink-0">
+                  <IconMail size={20} stroke={1.75} className="text-[#2D5A3D]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">¿Tienes un reclamo administrativo?</p>
+                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                    Para consultas sobre pagos, cuotas de administración, reserva de áreas comunes
+                    u otros temas administrativos, puedes escribirnos directamente y con gusto te
+                    atenderemos.
+                  </p>
+                  <a
+                    href="mailto:servicioalcliente@comosa.com.gt"
+                    className="inline-block mt-2.5 text-sm font-semibold text-[#2D5A3D] underline underline-offset-2 hover:text-[#4a8060] transition-colors break-all"
+                  >
+                    servicioalcliente@comosa.com.gt
+                  </a>
+                </div>
+              </div>
+
+              ) : (
+              <>
+
               {/* Título */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -493,6 +523,9 @@ export default function ReclamosPage() {
                   : "Enviar reclamo"
                 }
               </button>
+
+              </>
+              )}
 
             </form>
           </div>
