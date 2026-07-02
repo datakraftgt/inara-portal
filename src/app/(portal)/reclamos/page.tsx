@@ -55,6 +55,15 @@ const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function fileNameFromUrl(url: string): string {
+  const last = url.split("/").pop() ?? url;
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return last;
+  }
+}
+
 function formatSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${Math.round(bytes / 1024)} KB`;
@@ -695,21 +704,14 @@ function ReclamoDrawer({ reclamo, onClose }: { reclamo: Reclamo; onClose: () => 
             {reclamo.archivosUrls && reclamo.archivosUrls.length > 0 ? (
               <ul className="space-y-2">
                 {reclamo.archivosUrls.map((url, i) => (
-                  <li key={i}>
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-[#2D5A3D] hover:underline"
-                    >
-                      <IconFile size={14} stroke={1.75} className="flex-shrink-0" />
-                      Archivo {i + 1}
-                    </a>
+                  <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                    <IconFile size={14} stroke={1.75} className="text-gray-400 flex-shrink-0" />
+                    <span className="truncate">{fileNameFromUrl(url)}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-gray-400">Ver archivos adjuntos</p>
+              <p className="text-sm text-gray-400">Sin archivos adjuntos</p>
             )}
           </section>
 

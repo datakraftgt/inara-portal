@@ -197,6 +197,10 @@ export async function POST(request: NextRequest) {
   }
 
   const numeroCaso = crmResult.data?.numeroCaso ?? "";
+  if (!numeroCaso) {
+    // ggt_NoCaso vacío = el CRM cambió el formato de respuesta otra vez
+    console.error("CRM no devolvió número de caso. Respuesta:", JSON.stringify(crmResult));
+  }
 
   // ── (f) Guardar respaldo en reclamos_respaldo ─────────────────────────────
   try {
