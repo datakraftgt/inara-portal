@@ -4,14 +4,22 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { IconLogout, IconX } from "@tabler/icons-react";
+import {
+  IconLogout,
+  IconX,
+  IconHome,
+  IconRulerMeasure,
+  IconFileText,
+  IconBuilding,
+  IconAlertCircle,
+} from "@tabler/icons-react";
 
 const navItems = [
-  { href: "/dashboard",      label: "Dashboard",   icon: "⊞" },
-  { href: "/planos",         label: "Planos",      icon: "⬜" },
-  { href: "/mis-documentos", label: "Documentos",  icon: "📄" },
-  { href: "/proveedores",    label: "Proveedores", icon: "🏢" },
-  { href: "/reclamos",       label: "Reclamos",    icon: "⚠" },
+  { href: "/dashboard",      label: "Dashboard",   Icon: IconHome },
+  { href: "/planos",         label: "Planos",      Icon: IconRulerMeasure },
+  { href: "/mis-documentos", label: "Documentos",  Icon: IconFileText },
+  { href: "/proveedores",    label: "Proveedores", Icon: IconBuilding },
+  { href: "/reclamos",       label: "Reclamos",    Icon: IconAlertCircle },
 ];
 
 type Props = {
@@ -84,7 +92,7 @@ export default function MobileDrawer({ open, onClose }: Props) {
         {/* Nav */}
         <nav className="flex-1 py-4 overflow-y-auto">
           <ul className="space-y-0.5 px-2">
-            {navItems.map(({ href, label, icon }) => {
+            {navItems.map(({ href, label, Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/");
               return (
                 <li key={href}>
@@ -96,7 +104,7 @@ export default function MobileDrawer({ open, onClose }: Props) {
                         : "text-white/75 hover:bg-white/10 hover:text-white"
                     }`}
                   >
-                    <span className="text-base leading-none">{icon}</span>
+                    <Icon size={18} stroke={active ? 2 : 1.75} className="flex-shrink-0" />
                     {label}
                   </Link>
                 </li>

@@ -48,6 +48,10 @@ export default function LoginPage({
           <Suspense>
             <LoginForm />
           </Suspense>
+
+          <p className="mt-7 text-center font-playfair italic text-[13px] text-[#2D5A3D]/75">
+            La vida que mereces está aquí.
+          </p>
         </div>
       </div>
 
