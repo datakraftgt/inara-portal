@@ -30,10 +30,16 @@ export default function MobileBottomNav() {
               <Link
                 href={href}
                 className={`flex flex-col items-center justify-center gap-1 h-full w-full transition-colors ${
-                  active ? "text-[#f7f4f0]" : "text-white/55 hover:text-white/80"
+                  active ? "text-white" : "text-white/55 hover:text-white/80"
                 }`}
               >
-                <Icon size={22} stroke={active ? 2 : 1.75} />
+                <span
+                  className={`flex items-center justify-center px-4 py-0.5 rounded-full transition-colors ${
+                    active ? "bg-white/20" : "bg-transparent"
+                  }`}
+                >
+                  <Icon size={22} stroke={active ? 2 : 1.75} />
+                </span>
                 <span className={`text-[10px] leading-none ${active ? "font-semibold" : "font-medium"}`}>
                   {label}
                 </span>
