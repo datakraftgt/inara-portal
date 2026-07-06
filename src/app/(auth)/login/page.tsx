@@ -19,28 +19,28 @@ export default function LoginPage({
     redirect(qs ? `/login?${qs}` : "/login");
   }
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-[#2D5A3D] px-8 py-12 md:bg-[url('/images/login.jpg')] md:bg-cover md:bg-center md:bg-no-repeat">
+    <main className="min-h-screen flex flex-col items-center justify-center bg-[#2D5A3D] bg-[url('/images/login.jpg')] bg-cover bg-center bg-no-repeat px-6 py-12">
 
-      {/* Card on desktop; on mobile it's an invisible wrapper (green page, PROMPT 40) */}
-      <div className="w-full max-w-[340px] md:max-w-[420px] flex flex-col items-center md:bg-[#f7f4f0]/75 md:backdrop-blur-sm md:rounded-3xl md:shadow-xl md:p-10">
+      {/* Glass card over the building image (all breakpoints) */}
+      <div className="w-full max-w-[380px] md:max-w-[420px] flex flex-col items-center bg-[#f7f4f0]/75 backdrop-blur-sm rounded-3xl shadow-xl p-8 md:p-10">
 
         {/* Logo — white artwork, so on the light card it sits on a green chip */}
-        <div className="mb-10 md:mb-8 md:bg-[#2D5A3D] md:rounded-2xl md:px-7 md:py-5">
+        <div className="mb-8 bg-[#2D5A3D] rounded-2xl px-7 py-5">
           <Image
             src="/images/logo-inara-ii.png"
             alt="Inara Américas II"
             width={180}
             height={134}
             priority
-            className="md:w-[150px] md:h-auto"
+            className="w-[140px] md:w-[150px] h-auto"
           />
         </div>
 
         <div className="w-full">
-          <h1 className="font-playfair font-semibold text-xl md:text-[26px] text-white md:text-gray-900 mb-1.5 text-center">
+          <h1 className="font-playfair font-semibold text-xl md:text-[26px] text-gray-900 mb-1.5 text-center">
             Bienvenido
           </h1>
-          <p className="text-sm text-[#f7f4f0]/80 md:text-gray-600 mb-8 leading-snug text-center">
+          <p className="text-sm text-gray-600 mb-8 leading-snug text-center">
             Ingresa con los datos de tu apartamento
           </p>
 

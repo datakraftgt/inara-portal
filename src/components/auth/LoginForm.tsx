@@ -69,7 +69,7 @@ export default function LoginForm() {
 
       {/* Apartment number */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="apartment" className="text-sm font-medium text-white md:text-gray-700">
+        <label htmlFor="apartment" className="text-sm font-medium text-gray-700">
           Número de apartamento
         </label>
         <input
@@ -80,13 +80,13 @@ export default function LoginForm() {
           placeholder="Ej. A-101"
           required
           disabled={loading}
-          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-white md:focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
+          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
         />
       </div>
 
       {/* Password */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="password" className="text-sm font-medium text-white md:text-gray-700">
+        <label htmlFor="password" className="text-sm font-medium text-gray-700">
           Contraseña
         </label>
         <input
@@ -97,9 +97,9 @@ export default function LoginForm() {
           placeholder="••••••••"
           required
           disabled={loading}
-          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-white md:focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
+          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
         />
-        <p className="text-[11px] text-white/60 md:text-gray-500 leading-snug mt-0.5">
+        <p className="text-[11px] text-gray-500 leading-snug mt-0.5">
           Tu contraseña inicial es el número de DPI del titular del apartamento.
         </p>
       </div>
@@ -108,7 +108,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={!ready || loading}
-        className="mt-1 w-full rounded-lg bg-[#E4DCD4] text-[#2D5A3D] py-2.5 text-sm font-semibold hover:bg-[#d5cdc5] active:bg-[#c9c2ba] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E4DCD4]/60 md:focus:ring-[#2D5A3D]/50 focus:ring-offset-2 focus:ring-offset-[#2D5A3D] md:focus:ring-offset-transparent disabled:opacity-60 disabled:cursor-not-allowed"
+        className="mt-1 w-full rounded-lg bg-[#E4DCD4] text-[#2D5A3D] py-2.5 text-sm font-semibold hover:bg-[#d5cdc5] active:bg-[#c9c2ba] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2D5A3D]/50 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? "Verificando…" : "Ingresar"}
       </button>
