@@ -14,7 +14,7 @@ export default function PortalLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-[#E4DCD4] bg-[url('/images/fondo-dashboard.jpg')] bg-cover bg-center bg-no-repeat md:bg-fixed">
+    <div className="flex min-h-screen bg-[#E4DCD4] bg-[linear-gradient(rgba(45,42,38,0.10),rgba(45,42,38,0.10)),url('/images/fondo-dashboard.jpg')] bg-cover bg-center bg-no-repeat md:bg-fixed">
       {/* Desktop sidebar — hidden on mobile */}
       <Sidebar />
 
