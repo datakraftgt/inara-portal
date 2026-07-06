@@ -26,7 +26,16 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-[200px] min-h-screen bg-[#2D5A3D] hidden md:flex flex-col flex-shrink-0">
+    <aside className="relative isolate overflow-hidden w-[200px] min-h-screen bg-[#2D5A3D] hidden md:flex flex-col flex-shrink-0">
+      {/* Decorative motif — behind the nav (-z-10), clicks pass through */}
+      <Image
+        src="/images/sideicon.png"
+        alt=""
+        aria-hidden="true"
+        width={200}
+        height={300}
+        className="absolute right-0 bottom-0 -z-10 w-[160px] h-auto object-contain opacity-20 pointer-events-none select-none"
+      />
       <div className="flex items-center justify-center py-5 px-4 border-b border-[#3D7A54]">
         <Link href="/dashboard">
           <Image

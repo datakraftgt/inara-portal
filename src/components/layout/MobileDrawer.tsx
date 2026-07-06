@@ -48,10 +48,20 @@ export default function MobileDrawer({ open, onClose }: Props) {
 
       {/* Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[200px] bg-[#2D5A3D] flex flex-col md:hidden
+        className={`fixed inset-y-0 left-0 z-50 w-[200px] bg-[#2D5A3D] isolate overflow-hidden flex flex-col md:hidden
           transform transition-transform duration-300 ease-in-out
           ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
+        {/* Decorative motif — behind the nav (-z-10), clicks pass through */}
+        <Image
+          src="/images/sideicon.png"
+          alt=""
+          aria-hidden="true"
+          width={200}
+          height={300}
+          className="absolute right-0 bottom-0 -z-10 w-[160px] h-auto object-contain opacity-20 pointer-events-none select-none"
+        />
+
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-5 border-b border-[#3D7A54] flex-shrink-0">
           <Link href="/dashboard">
