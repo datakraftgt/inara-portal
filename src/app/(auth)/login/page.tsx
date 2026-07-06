@@ -19,46 +19,28 @@ export default function LoginPage({
     redirect(qs ? `/login?${qs}` : "/login");
   }
   return (
-    <main className="min-h-screen flex">
+    <main className="min-h-screen flex flex-col items-center justify-center bg-[#2D5A3D] px-8 py-12 md:bg-[url('/images/login.jpg')] md:bg-cover md:bg-center md:bg-no-repeat">
 
-      {/* ── Left column: brand panel ── */}
-      <div className="relative hidden md:flex w-[48%] bg-[#2D5A3D] flex-col items-center justify-center gap-10 px-12 py-16">
-        <Image
-          src="/images/logo-inara-ii.png"
-          alt="Inara Américas II"
-          width={280}
-          height={208}
-          priority
-        />
+      {/* Card on desktop; on mobile it's an invisible wrapper (green page, PROMPT 40) */}
+      <div className="w-full max-w-[340px] md:max-w-[420px] flex flex-col items-center md:bg-[#f7f4f0]/75 md:backdrop-blur-sm md:rounded-3xl md:shadow-xl md:p-10">
 
-        <p className="text-white/70 italic tracking-wide text-lg text-center">
-          La vida que mereces está aquí.
-        </p>
-
-        <p className="absolute bottom-8 text-white/30 text-[10px] tracking-[0.25em] uppercase">
-          Américas II
-        </p>
-      </div>
-
-      {/* ── Right column: form ── */}
-      <div className="flex-1 bg-[#2D5A3D] md:bg-white flex flex-col items-center justify-center px-8 py-12 md:px-16">
-
-        {/* Mobile logo */}
-        <div className="flex md:hidden flex-col items-center gap-2 mb-10">
+        {/* Logo — white artwork, so on the light card it sits on a green chip */}
+        <div className="mb-10 md:mb-8 md:bg-[#2D5A3D] md:rounded-2xl md:px-7 md:py-5">
           <Image
             src="/images/logo-inara-ii.png"
             alt="Inara Américas II"
             width={180}
             height={134}
             priority
+            className="md:w-[150px] md:h-auto"
           />
         </div>
 
-        <div className="w-full max-w-[340px]">
-          <h1 className="font-playfair font-semibold text-xl md:text-[26px] text-white md:text-gray-900 mb-1.5 text-center md:text-left">
+        <div className="w-full">
+          <h1 className="font-playfair font-semibold text-xl md:text-[26px] text-white md:text-gray-900 mb-1.5 text-center">
             Bienvenido
           </h1>
-          <p className="text-sm text-[#f7f4f0]/80 md:text-gray-500 mb-8 leading-snug text-center md:text-left">
+          <p className="text-sm text-[#f7f4f0]/80 md:text-gray-600 mb-8 leading-snug text-center">
             Ingresa con los datos de tu apartamento
           </p>
 
