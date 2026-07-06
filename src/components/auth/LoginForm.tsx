@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { IconEye, IconEyeOff } from "@tabler/icons-react";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function LoginForm() {
     : null;
   const [error, setError] = useState<string | null>(nativeError);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   // Prevent native form submission before React hydration completes.
   const [ready, setReady] = useState(false);
   useEffect(() => { setReady(true); }, []);
@@ -89,16 +91,29 @@ export default function LoginForm() {
         <label htmlFor="password" className="text-sm font-medium text-gray-700">
           Contraseña
         </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          placeholder="••••••••"
-          required
-          disabled={loading}
-          className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
-        />
+        <div className="relative">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            placeholder="••••••••"
+            required
+            disabled={loading}
+            className="w-full rounded-lg border border-gray-300 pl-3.5 pr-10 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-[#2D5A3D] focus:border-transparent transition disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            disabled={loading}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+          >
+            {showPassword
+              ? <IconEyeOff size={18} stroke={1.75} />
+              : <IconEye size={18} stroke={1.75} />}
+          </button>
+        </div>
         <p className="text-[11px] text-gray-500 leading-snug mt-0.5">
           Tu contraseña inicial es el número de DPI del titular del apartamento.
         </p>
