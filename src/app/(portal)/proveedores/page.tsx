@@ -169,7 +169,7 @@ function ProveedorCard({
   return (
     <article
       onClick={onClick}
-      className={`bg-white rounded-xl border shadow-sm cursor-pointer transition-all flex flex-col gap-3 p-4
+      className={`bg-white rounded-2xl border shadow-sm cursor-pointer transition-all flex flex-col gap-3 p-4
         ${selected
           ? "border-[#2D5A3D] ring-1 ring-[#2D5A3D]/20"
           : "border-gray-200 hover:border-gray-300 hover:shadow-md"

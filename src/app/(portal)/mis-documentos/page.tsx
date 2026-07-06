@@ -81,7 +81,7 @@ function DocumentRow({ file }: { file: FileItem }) {
   const busy = viewLoading || dlLoading;
 
   return (
-    <div className="flex flex-col gap-2 p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all">
+    <div className="flex flex-col gap-2 p-4 bg-white rounded-2xl border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all">
       <div className="flex items-center gap-4">
         {/* PDF badge */}
         <div className="w-10 h-12 bg-red-50 border border-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
