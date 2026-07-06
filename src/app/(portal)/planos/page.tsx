@@ -248,7 +248,7 @@ function PlanoCard({
   ubicacion: string;
 }) {
   return (
-    <article className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 transition-all group flex flex-col">
+    <article className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md hover:border-gray-300 transition-all group flex flex-col">
       {/* Preview */}
       <div className="h-40 bg-[#2D5A3D] flex items-center justify-center p-8 flex-shrink-0">
         <plano.Preview />

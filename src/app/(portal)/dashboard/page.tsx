@@ -223,7 +223,7 @@ function CardGrid() {
           <Link
             key={card.title}
             href={card.href}
-            className="group bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-4 hover:border-[#2D5A3D]/40 hover:shadow-sm transition-all"
+            className="group bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-4 hover:border-[#2D5A3D]/40 hover:shadow-md transition-all"
           >
             {/* Icon row + badge */}
             <div className="flex items-start justify-between">
@@ -290,7 +290,7 @@ function ClaimsSection({ claims }: { claims: Claim[] }) {
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {claims.length === 0 ? (
           <div className="px-5 py-8 text-center">
             <p className="text-sm text-gray-400">Aún no tienes reclamos registrados.</p>

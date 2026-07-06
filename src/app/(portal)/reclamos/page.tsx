@@ -281,7 +281,7 @@ export default function ReclamosPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
 
           {/* ── Formulario ── */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-900">Nuevo reclamo</h2>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -531,7 +531,7 @@ export default function ReclamosPage() {
           </div>
 
           {/* ── Historial ── */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-900">Historial de reclamos</h2>
               <p className="text-xs text-gray-400 mt-0.5">
