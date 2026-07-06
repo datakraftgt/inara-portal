@@ -108,7 +108,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={!ready || loading}
-        className="mt-1 w-full rounded-lg bg-[#E4DCD4] text-[#2D5A3D] py-2.5 text-sm font-semibold hover:bg-[#d5cdc5] active:bg-[#c9c2ba] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2D5A3D]/50 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-60 disabled:cursor-not-allowed"
+        className="mt-1 w-full rounded-lg bg-[#2D5A3D] text-white py-2.5 text-sm font-semibold hover:bg-[#4a8060] active:bg-[#1E3D2A] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2D5A3D]/50 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? "Verificando…" : "Ingresar"}
       </button>
