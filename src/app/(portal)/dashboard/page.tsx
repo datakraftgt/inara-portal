@@ -283,7 +283,7 @@ function ClaimsSection({ claims }: { claims: Claim[] }) {
         </h2>
         <Link
           href="/reclamos"
-          className="text-xs text-[#2D5A3D] font-medium hover:underline flex items-center gap-1"
+          className="text-xs text-[#2D5A3D] font-medium bg-[#E4DCD4] hover:bg-[#d5cdc5] px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 transition-colors"
         >
           Ver todos
           <IconChevronRight size={12} />
