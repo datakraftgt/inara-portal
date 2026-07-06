@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import {
   IconBook,
@@ -335,12 +336,51 @@ function ClaimsSection({ claims }: { claims: Claim[] }) {
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// Placeholder shown while the claims query streams in. Header and "Ver todos"
+// are real (static) so only the rows swap on load, without layout shift.
+function ClaimsSectionSkeleton() {
+  return (
+    <section className="px-6 md:px-10 py-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-playfair text-sm font-bold text-[#2D5A3D] uppercase tracking-widest">
+          Últimos reclamos
+        </h2>
+        <Link
+          href="/reclamos"
+          className="text-xs text-[#2D5A3D] font-medium bg-[#E4DCD4] hover:bg-[#d5cdc5] px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 transition-colors"
+        >
+          Ver todos
+          <IconChevronRight size={12} />
+        </Link>
+      </div>
 
-export default async function DashboardPage() {
-  const user = await getServerSession();
-  if (!user) redirect("/login");
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className={`flex items-center gap-4 px-5 py-4 animate-pulse ${
+              i < 2 ? "border-b border-gray-100" : ""
+            }`}
+          >
+            <div className="w-7 h-7 rounded-full bg-gray-100 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="h-3.5 w-2/3 max-w-[220px] bg-gray-100 rounded" />
+              <div className="h-3 w-24 bg-gray-100 rounded mt-1.5" />
+            </div>
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+              <div className="h-4 w-16 bg-gray-100 rounded-full" />
+              <div className="h-3 w-14 bg-gray-100 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
+// Async server component: the DB query lives here so the page shell can
+// stream immediately and this section resolves under its Suspense boundary.
+async function RecentClaims({ apartamentoId }: { apartamentoId: number }) {
   let recentClaims: Claim[] = [];
   try {
     const result = await pool.query<{
@@ -355,7 +395,7 @@ export default async function DashboardPage() {
         WHERE apartamento_id = $1
         ORDER BY created_at DESC
         LIMIT 3`,
-      [user.apartamentoId]
+      [apartamentoId]
     );
     recentClaims = result.rows.map(r => ({
       id:         String(r.id),
@@ -370,6 +410,15 @@ export default async function DashboardPage() {
     recentClaims = [];
   }
 
+  return <ClaimsSection claims={recentClaims} />;
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default async function DashboardPage() {
+  const user = await getServerSession();
+  if (!user) redirect("/login");
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
       <HeroBand
@@ -377,7 +426,9 @@ export default async function DashboardPage() {
         apartamento={user.codigoLogin}
         ubicacion={user.ubicacion}
       />
-      <ClaimsSection claims={recentClaims} />
+      <Suspense fallback={<ClaimsSectionSkeleton />}>
+        <RecentClaims apartamentoId={user.apartamentoId} />
+      </Suspense>
       <CardGrid />
     </div>
   );
