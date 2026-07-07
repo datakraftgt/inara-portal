@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { redirect } from "next/navigation";
 import {
   IconBook,
@@ -29,6 +29,8 @@ type PortalCard = {
   href: string;
   badge?: string;
   badgeClass?: string;
+  /** El conteo se resuelve en runtime con los reclamos del residente */
+  dynamicCount?: boolean;
 };
 
 type Claim = {
@@ -97,8 +99,9 @@ const PORTAL_CARDS: PortalCard[] = [
     Icon: IconAlertTriangle,
     title: "Reclamos",
     description: "Reporta defectos o solicitudes de garantía",
-    count: "2 reclamos",
+    count: null,
     href: "/reclamos",
+    dynamicCount: true,
   },
   {
     Icon: IconUsers,
@@ -189,7 +192,7 @@ function HeroBand({
   );
 }
 
-function CardGrid() {
+function CardGrid({ apartamentoId }: { apartamentoId: number }) {
   return (
     <section className="px-6 md:px-10 pt-8 pb-4">
       <h2 className="font-playfair text-sm font-bold text-[#2D5A3D] uppercase tracking-widest mb-4">
@@ -232,7 +235,15 @@ function CardGrid() {
 
             {/* Count + arrow */}
             <div className="flex items-center justify-between">
-              {card.count ? (
+              {card.dynamicCount ? (
+                <span className="text-xs text-[#2D5A3D] font-medium">
+                  <Suspense
+                    fallback={<span className="inline-block h-3 w-16 rounded bg-gray-100 animate-pulse" />}
+                  >
+                    <ReclamosCountLabel apartamentoId={apartamentoId} />
+                  </Suspense>
+                </span>
+              ) : card.count ? (
                 <span className="text-xs text-[#2D5A3D] font-medium">
                   {card.count}
                 </span>
@@ -354,10 +365,11 @@ function ClaimsSectionSkeleton() {
   );
 }
 
-// Async server component: the DB query lives here so the page shell can
-// stream immediately and this section resolves under its Suspense boundary.
-async function RecentClaims({ apartamentoId }: { apartamentoId: number }) {
-  let recentClaims: Claim[] = [];
+// Query compartido entre "Últimos reclamos" y el conteo de la card Reclamos.
+// cache() deduplica por request: aunque ambos componentes lo llamen, la DB
+// se consulta una sola vez. COUNT(*) OVER() trae el total real (el LIMIT 3
+// solo acota las filas mostradas, no el conteo).
+const getReclamos = cache(async (apartamentoId: number): Promise<{ claims: Claim[]; total: number }> => {
   try {
     const result = await pool.query<{
       id: number;
@@ -365,28 +377,46 @@ async function RecentClaims({ apartamentoId }: { apartamentoId: number }) {
       titulo: string;
       estado_crm: string;
       created_at: string;
+      total: string;
     }>(
-      `SELECT id, numero_caso, titulo, estado_crm, created_at
+      `SELECT id, numero_caso, titulo, estado_crm, created_at,
+              COUNT(*) OVER () AS total
          FROM reclamos_respaldo
         WHERE apartamento_id = $1
         ORDER BY created_at DESC
         LIMIT 3`,
       [apartamentoId]
     );
-    recentClaims = result.rows.map(r => ({
-      id:         String(r.id),
-      numeroCaso: r.numero_caso,
-      titulo:     r.titulo,
-      estado:     mapEstadoCrm(r.estado_crm),
-      fecha:      new Date(r.created_at).toLocaleDateString("es-GT", {
-        day: "numeric", month: "short", year: "numeric",
-      }),
-    }));
+    return {
+      claims: result.rows.map(r => ({
+        id:         String(r.id),
+        numeroCaso: r.numero_caso,
+        titulo:     r.titulo,
+        estado:     mapEstadoCrm(r.estado_crm),
+        fecha:      new Date(r.created_at).toLocaleDateString("es-GT", {
+          day: "numeric", month: "short", year: "numeric",
+        }),
+      })),
+      total: result.rows.length > 0 ? Number(result.rows[0].total) : 0,
+    };
   } catch {
-    recentClaims = [];
+    return { claims: [], total: 0 };
   }
+});
 
-  return <ClaimsSection claims={recentClaims} />;
+// Async server component: the DB query lives here so the page shell can
+// stream immediately and this section resolves under its Suspense boundary.
+async function RecentClaims({ apartamentoId }: { apartamentoId: number }) {
+  const { claims } = await getReclamos(apartamentoId);
+  return <ClaimsSection claims={claims} />;
+}
+
+// Conteo real de reclamos para la card del portal; comparte getReclamos
+// con RecentClaims, así que no agrega un query extra.
+async function ReclamosCountLabel({ apartamentoId }: { apartamentoId: number }) {
+  const { total } = await getReclamos(apartamentoId);
+  if (total === 0) return <>Sin reclamos</>;
+  return <>{total === 1 ? "1 reclamo" : `${total} reclamos`}</>;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -405,7 +435,7 @@ export default async function DashboardPage() {
       <Suspense fallback={<ClaimsSectionSkeleton />}>
         <RecentClaims apartamentoId={user.apartamentoId} />
       </Suspense>
-      <CardGrid />
+      <CardGrid apartamentoId={user.apartamentoId} />
     </div>
   );
 }
