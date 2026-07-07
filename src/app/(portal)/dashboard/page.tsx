@@ -12,10 +12,7 @@ import {
   IconAlertTriangle,
   IconUsers,
   IconChevronRight,
-  IconClock,
   IconCircleCheck,
-  IconClockHour3,
-  IconX,
 } from "@tabler/icons-react";
 import { getServerSession } from "@/lib/session";
 import pool from "@/lib/db";
@@ -38,7 +35,7 @@ type Claim = {
   id: string;
   numeroCaso: string;
   titulo: string;
-  estado: "Pendiente" | "En revisión" | "Resuelto" | "Cerrado";
+  estado: "Enviado";
   fecha: string;
 };
 
@@ -102,8 +99,6 @@ const PORTAL_CARDS: PortalCard[] = [
     description: "Reporta defectos o solicitudes de garantía",
     count: "2 reclamos",
     href: "/reclamos",
-    badge: "1 pendiente",
-    badgeClass: "bg-amber-100 text-amber-700",
   },
   {
     Icon: IconUsers,
@@ -116,15 +111,11 @@ const PORTAL_CARDS: PortalCard[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function mapEstadoCrm(estadoCrm: string): Claim["estado"] {
-  switch (estadoCrm.toLowerCase()) {
-    case "en_revision":
-    case "en revisión":
-    case "en revision": return "En revisión";
-    case "resuelto":    return "Resuelto";
-    case "cerrado":     return "Cerrado";
-    default:            return "Pendiente";
-  }
+// Toda fila de reclamos_respaldo se inserta únicamente cuando el CRM aceptó
+// el caso, así que de cara al residente el estado es siempre "Enviado"
+// (cubre también registros históricos con estado_crm = 'Pendiente').
+function mapEstadoCrm(_estadoCrm: string): Claim["estado"] {
+  return "Enviado";
 }
 
 function daysSince(dateStr: string): number {
@@ -145,25 +136,10 @@ const STATUS_CONFIG: Record<
   Claim["estado"],
   { label: string; Icon: TablerIconComponent; class: string }
 > = {
-  Pendiente: {
-    label: "Pendiente",
-    Icon: IconClock,
-    class: "bg-amber-100 text-amber-700",
-  },
-  "En revisión": {
-    label: "En revisión",
-    Icon: IconClockHour3,
-    class: "bg-blue-100 text-blue-700",
-  },
-  Resuelto: {
-    label: "Resuelto",
+  Enviado: {
+    label: "Enviado",
     Icon: IconCircleCheck,
     class: "bg-green-100 text-green-700",
-  },
-  Cerrado: {
-    label: "Cerrado",
-    Icon: IconX,
-    class: "bg-gray-100 text-gray-600",
   },
 };
 

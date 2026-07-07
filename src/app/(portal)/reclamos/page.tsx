@@ -8,15 +8,13 @@ import {
   IconX,
   IconCircleCheck,
   IconMail,
-  IconClock,
-  IconClockHour3,
   IconLoader2,
   IconAlertCircle,
 } from "@tabler/icons-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Estado = "Pendiente" | "En revisión" | "Resuelto" | "Cerrado";
+type Estado = "Enviado";
 
 type Reclamo = {
   id: string;
@@ -44,11 +42,8 @@ const AREAS = [
   "Balcón",
 ] as const;
 
-const STATUS_CONFIG: Record<Estado, { cls: string; Icon: typeof IconClock }> = {
-  Pendiente:      { cls: "bg-amber-100 text-amber-700", Icon: IconClock },
-  "En revisión":  { cls: "bg-blue-100 text-blue-700",   Icon: IconClockHour3 },
-  Resuelto:       { cls: "bg-green-100 text-green-700", Icon: IconCircleCheck },
-  Cerrado:        { cls: "bg-gray-100 text-gray-600",   Icon: IconX },
+const STATUS_CONFIG: Record<Estado, { cls: string; Icon: typeof IconCircleCheck }> = {
+  Enviado: { cls: "bg-green-100 text-green-700", Icon: IconCircleCheck },
 };
 
 const MAX_FILES     = 5;

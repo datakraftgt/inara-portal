@@ -7,22 +7,11 @@ import pool from "@/lib/db";
 
 // ── GET /api/reclamos — historial del residente autenticado ──────────────────
 
-function mapEstado(estadoCrm: string): string {
-  switch (estadoCrm.toLowerCase()) {
-    case "enviado":
-    case "pendiente":
-      return "Pendiente";
-    case "en_revision":
-    case "en revisión":
-    case "en revision":
-      return "En revisión";
-    case "resuelto":
-      return "Resuelto";
-    case "cerrado":
-      return "Cerrado";
-    default:
-      return "Pendiente";
-  }
+// Toda fila de reclamos_respaldo se inserta únicamente cuando el CRM aceptó
+// el caso, así que de cara al residente el estado es siempre "Enviado"
+// (cubre también registros históricos con estado_crm = 'Pendiente').
+function mapEstado(_estadoCrm: string): string {
+  return "Enviado";
 }
 
 export async function GET(request: NextRequest) {
