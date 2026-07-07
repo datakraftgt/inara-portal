@@ -13,6 +13,8 @@ import {
   IconTrash,
   IconFile,
   IconPlus,
+  IconUsers,
+  IconSearch,
 } from "@tabler/icons-react";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -44,6 +46,8 @@ type Apartamento = {
   modelo: string;
   torre: string;
   numero: number;
+  nivel: string;
+  last_login_at: string | null;
 };
 
 type FileItem = {
@@ -67,6 +71,30 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function relativeLogin(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return "Hoy";
+  if (days === 1) return "Ayer";
+  if (days < 7) return `Hace ${days} días`;
+  if (days < 30) {
+    const semanas = Math.floor(days / 7);
+    return semanas === 1 ? "Hace 1 semana" : `Hace ${semanas} semanas`;
+  }
+  const meses = Math.floor(days / 30);
+  return meses === 1 ? "Hace 1 mes" : `Hace ${meses} meses`;
+}
+
+function exactLogin(iso: string): string {
+  return new Date(iso).toLocaleString("es-GT", {
+    timeZone: "America/Guatemala",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 const MAX_SIZE = 50 * 1024 * 1024;
@@ -210,7 +238,7 @@ function FileRow({
 
 export default function AdminPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"compartidos" | "individual">("compartidos");
+  const [tab, setTab] = useState<"compartidos" | "individual" | "residentes">("compartidos");
 
   // Apartamentos
   const [apartamentos, setApartamentos] = useState<Apartamento[]>([]);
@@ -226,6 +254,10 @@ export default function AdminPage() {
 
   // Delete progress: set of keys being deleted
   const [deletingKeys, setDeletingKeys] = useState<Set<string>>(new Set());
+
+  // Residentes tab: búsqueda y filtro "nunca han ingresado" (client-side)
+  const [searchResidentes, setSearchResidentes] = useState("");
+  const [soloNunca, setSoloNunca] = useState(false);
 
   // ── Load apartamentos ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -382,20 +414,24 @@ export default function AdminPage() {
       {/* Tabs */}
       <div className="bg-white border-b border-gray-200 px-6">
         <nav className="flex gap-0 -mb-px">
-          {(["compartidos", "individual"] as const).map((t) => (
+          {([
+            { id: "compartidos", label: "Documentos compartidos",    icon: <IconFolder size={15} /> },
+            { id: "individual",  label: "Documentos por apartamento", icon: <IconBuilding size={15} /> },
+            { id: "residentes",  label: "Residentes",                 icon: <IconUsers size={15} /> },
+          ] as const).map((t) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={t.id}
+              onClick={() => setTab(t.id)}
               className={`
                 flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-colors
-                ${tab === t
+                ${tab === t.id
                   ? "border-[#2D5A3D] text-[#2D5A3D]"
                   : "border-transparent text-gray-500 hover:text-gray-700"
                 }
               `}
             >
-              {t === "compartidos" ? <IconFolder size={15} /> : <IconBuilding size={15} />}
-              {t === "compartidos" ? "Documentos compartidos" : "Documentos por apartamento"}
+              {t.icon}
+              {t.label}
             </button>
           ))}
         </nav>
@@ -545,6 +581,105 @@ export default function AdminPage() {
             )}
           </div>
         )}
+
+        {/* ── Residentes ── */}
+        {tab === "residentes" && (() => {
+          const filtered = apartamentos.filter((apt) => {
+            const q = searchResidentes.trim().toLowerCase();
+            if (!q) return true;
+            return (
+              apt.codigo_login.toLowerCase().includes(q) ||
+              apt.modelo.toLowerCase().includes(q)
+            );
+          });
+          const nuncaCount = filtered.filter((apt) => !apt.last_login_at).length;
+          const visible = soloNunca ? filtered.filter((apt) => !apt.last_login_at) : filtered;
+
+          return (
+            <div>
+              <p className="text-xs text-gray-400 mb-6">
+                Último ingreso de cada residente al portal. Esta información solo es visible para administradores.
+              </p>
+
+              {/* Filtros */}
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="relative">
+                  <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchResidentes}
+                    onChange={(e) => setSearchResidentes(e.target.value)}
+                    placeholder="Buscar apartamento o modelo..."
+                    className="pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#2D5A3D]/30 focus:border-[#2D5A3D]"
+                  />
+                </div>
+                <button
+                  onClick={() => setSoloNunca((v) => !v)}
+                  className={`
+                    flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors
+                    ${soloNunca
+                      ? "border border-amber-400 bg-amber-50 text-amber-800"
+                      : "border border-gray-300 bg-white text-gray-600"
+                    }
+                  `}
+                >
+                  {soloNunca && <IconAlertCircle size={14} />}
+                  Solo residentes que nunca han ingresado
+                </button>
+                <span className="text-xs text-gray-500">
+                  {nuncaCount} {nuncaCount === 1 ? "residente" : "residentes"} sin primer ingreso
+                </span>
+              </div>
+
+              {/* Tabla */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                {loadingApts ? (
+                  <div className="flex items-center gap-2 px-5 py-8 text-sm text-gray-400">
+                    <IconLoader2 size={14} className="animate-spin" /> Cargando...
+                  </div>
+                ) : visible.length === 0 ? (
+                  <p className="px-5 py-8 text-sm text-gray-400 text-center">
+                    No se encontraron residentes con los filtros actuales.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                          <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Apartamento</th>
+                          <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Modelo</th>
+                          <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nivel</th>
+                          <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Último ingreso</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {visible.map((apt) => (
+                          <tr key={apt.id_apartamento} className="hover:bg-gray-50">
+                            <td className="px-5 py-3 font-medium text-gray-700">{apt.codigo_login}</td>
+                            <td className="px-5 py-3 text-gray-600">{apt.modelo}</td>
+                            <td className="px-5 py-3 text-gray-600">{apt.nivel}</td>
+                            <td className="px-5 py-3">
+                              {apt.last_login_at ? (
+                                <div>
+                                  <p className="text-gray-700">{relativeLogin(apt.last_login_at)}</p>
+                                  <p className="text-xs text-gray-400">{exactLogin(apt.last_login_at)}</p>
+                                </div>
+                              ) : (
+                                <span className="bg-amber-100 text-amber-800 rounded-full px-2 py-1 text-xs font-medium">
+                                  Nunca
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

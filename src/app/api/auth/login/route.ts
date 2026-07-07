@@ -142,6 +142,16 @@ export async function POST(request: NextRequest) {
   const apartamentoId = row.id as number;           // integer PK para FKs en DB
   const codigoLogin   = row.codigo_login as string;
 
+  // Registrar último ingreso — aislado para que un fallo aquí nunca bloquee el login
+  try {
+    await pool.query(
+      `UPDATE apartamentos SET last_login_at = NOW() WHERE id = $1`,
+      [apartamentoId]
+    );
+  } catch (err) {
+    console.error("Error actualizando last_login_at:", err);
+  }
+
   let jwtPayload: Record<string, unknown>;
   let redirectTo: string;
 

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await pool.query(
-      `SELECT id_apartamento, codigo_login, modelo, torre, numero, nivel
+      `SELECT id_apartamento, codigo_login, modelo, torre, numero, nivel, last_login_at
        FROM apartamentos
        WHERE rol = 'residente'
        ORDER BY torre, numero`,
