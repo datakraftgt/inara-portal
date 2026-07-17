@@ -16,6 +16,7 @@ import {
 } from "@tabler/icons-react";
 import { getServerSession } from "@/lib/session";
 import pool from "@/lib/db";
+import { getFechaEntrega } from "@/lib/entrega";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,8 +43,6 @@ type Claim = {
 };
 
 // ─── Static data ──────────────────────────────────────────────────────────────
-
-const DELIVERY_DATE = "2025-08-31";
 
 const PORTAL_CARDS: PortalCard[] = [
   {
@@ -121,18 +120,17 @@ function mapEstadoCrm(_estadoCrm: string): Claim["estado"] {
   return "Enviado";
 }
 
-function daysSince(dateStr: string): number {
-  const delivery = new Date(dateStr);
-  const today = new Date();
-  return Math.max(0, Math.floor((today.getTime() - delivery.getTime()) / 86_400_000));
-}
-
-function formatDeliveryDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("es-GT", {
+// El T12:00:00 evita el desfase de zona horaria al parsear solo la fecha
+// (sin él, "2026-07-31" se interpreta como UTC y en Guatemala retrocede un día).
+// Retorna null si el string no es una fecha parseable.
+function formatFechaEntrega(fecha: string): string | null {
+  const date = new Date(`${fecha}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("es-GT", {
     day: "numeric",
-    month: "short",
+    month: "long",
     year: "numeric",
-  });
+  }).format(date);
 }
 
 const STATUS_CONFIG: Record<
@@ -148,17 +146,59 @@ const STATUS_CONFIG: Record<
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+// Caja de fecha de entrega en el hero. Recibe la fecha ya resuelta (o null
+// si la unidad no ha sido entregada, el servicio falló o no hay codigo_sap).
+function FechaEntregaBox({ fechaEntrega }: { fechaEntrega: string | null }) {
+  const formatted = fechaEntrega !== null ? formatFechaEntrega(fechaEntrega) : null;
+
+  return (
+    <div className="self-start sm:self-auto flex-shrink-0 bg-white/10 border border-white/15 rounded-2xl px-6 py-4 text-center min-w-[130px]">
+      <p className="text-white/65 text-xs tracking-wide leading-tight">
+        Fecha de entrega
+      </p>
+      {formatted !== null ? (
+        <p className="text-white text-lg font-semibold mt-1.5 leading-snug">
+          {formatted}
+        </p>
+      ) : (
+        <p className="text-white/50 text-sm mt-1.5 leading-snug">
+          Fecha por confirmar
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Async server component: resuelve codigo_sap + servicio externo bajo su
+// propio Suspense para que el hero (y el resto del dashboard) streameen
+// de inmediato aunque el servicio de entregas tarde o no responda.
+async function FechaEntregaSlot({ apartamentoId }: { apartamentoId: number }) {
+  const fechaEntrega = await getFechaEntregaApartamento(apartamentoId);
+  return <FechaEntregaBox fechaEntrega={fechaEntrega} />;
+}
+
+function FechaEntregaBoxSkeleton() {
+  return (
+    <div className="self-start sm:self-auto flex-shrink-0 bg-white/10 border border-white/15 rounded-2xl px-6 py-4 text-center min-w-[130px]">
+      <p className="text-white/65 text-xs tracking-wide leading-tight">
+        Fecha de entrega
+      </p>
+      <div className="h-5 w-24 mx-auto mt-2 rounded bg-white/15 animate-pulse" />
+    </div>
+  );
+}
+
 function HeroBand({
   nombre,
   apartamento,
   ubicacion,
+  apartamentoId,
 }: {
   nombre: string;
   apartamento: string;
   ubicacion: string;
+  apartamentoId: number;
 }) {
-  const days = daysSince(DELIVERY_DATE);
-
   return (
     <div className="bg-[#2D5A3D] px-6 py-8 md:px-10 md:py-10">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 max-w-5xl">
@@ -177,16 +217,10 @@ function HeroBand({
           </p>
         </div>
 
-        {/* Day counter */}
-        <div className="self-start sm:self-auto flex-shrink-0 bg-white/10 border border-white/15 rounded-2xl px-6 py-4 text-center min-w-[130px]">
-          <p className="text-white text-4xl font-bold leading-none">{days}</p>
-          <p className="text-white/65 text-xs mt-1.5 leading-tight">
-            días desde<br />la entrega
-          </p>
-          <p className="text-white/35 text-[10px] mt-2 tracking-wide">
-            {formatDeliveryDate(DELIVERY_DATE)}
-          </p>
-        </div>
+        {/* Delivery date */}
+        <Suspense fallback={<FechaEntregaBoxSkeleton />}>
+          <FechaEntregaSlot apartamentoId={apartamentoId} />
+        </Suspense>
       </div>
     </div>
   );
@@ -365,6 +399,29 @@ function ClaimsSectionSkeleton() {
   );
 }
 
+// Fecha de entrega del apartamento: obtiene codigo_sap de la DB (el JWT no
+// lo incluye) y consulta el servicio externo. Promise.allSettled + los
+// try/catch internos garantizan que ningún fallo (columna codigo_sap aún
+// sin migrar, servicio caído, timeout) rompa el dashboard: se degrada a
+// null → "Fecha por confirmar". cache() deduplica por request.
+const getFechaEntregaApartamento = cache(async (apartamentoId: number): Promise<string | null> => {
+  let codigoSap: string | null = null;
+  try {
+    const result = await pool.query<{ codigo_sap: string | null }>(
+      "SELECT codigo_sap FROM apartamentos WHERE id = $1",
+      [apartamentoId]
+    );
+    codigoSap = result.rows[0]?.codigo_sap ?? null;
+  } catch (error) {
+    console.error("[dashboard] Error consultando codigo_sap:", error);
+    return null;
+  }
+  if (!codigoSap) return null;
+
+  const [fechaResult] = await Promise.allSettled([getFechaEntrega(codigoSap)]);
+  return fechaResult.status === "fulfilled" ? fechaResult.value : null;
+});
+
 // Query compartido entre "Últimos reclamos" y el conteo de la card Reclamos.
 // cache() deduplica por request: aunque ambos componentes lo llamen, la DB
 // se consulta una sola vez. COUNT(*) OVER() trae el total real (el LIMIT 3
@@ -431,6 +488,7 @@ export default async function DashboardPage() {
         nombre={user.nombre}
         apartamento={user.codigoLogin}
         ubicacion={user.ubicacion}
+        apartamentoId={user.apartamentoId}
       />
       <Suspense fallback={<ClaimsSectionSkeleton />}>
         <RecentClaims apartamentoId={user.apartamentoId} />
