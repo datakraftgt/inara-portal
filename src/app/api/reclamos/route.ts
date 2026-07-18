@@ -3,6 +3,7 @@ import { verifyAuth } from "@/lib/auth";
 import { crearCaso } from "@/lib/crm";
 import { getFileBuffer, publicUrl } from "@/lib/storage";
 import { MAX_FILES, MAX_FILE_SIZE } from "@/lib/reclamos-validation";
+import { getElegibilidadReclamo } from "@/lib/entrega";
 import pool from "@/lib/db";
 
 // ── GET /api/reclamos — historial del residente autenticado ──────────────────
@@ -63,6 +64,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  // ── (b) Elegibilidad: garantía de 365 días desde la entrega ────────────────
+  // Fail-open: si no se pudo leer codigo_sap o el servicio de entregas no
+  // responde, el reclamo sigue su curso; solo bloquea un veredicto explícito
+  // (vencido / no_entregado). El frontend muestra el mismo bloqueo, pero esta
+  // es la validación que cuenta.
+  try {
+    const sapResult = await pool.query<{ codigo_sap: string | null }>(
+      "SELECT codigo_sap FROM apartamentos WHERE id = $1 LIMIT 1",
+      [user.apartamentoId]
+    );
+    const codigoSap = sapResult.rows[0]?.codigo_sap;
+    if (codigoSap) {
+      const elegibilidad = await getElegibilidadReclamo(codigoSap);
+      if (!elegibilidad.permitido) {
+        return NextResponse.json(
+          { error: "reclamo_no_permitido", motivo: elegibilidad.motivo },
+          { status: 403 }
+        );
+      }
+    }
+  } catch (err) {
+    console.error("Error validando elegibilidad de reclamo:", err);
+  }
+
   // Los archivos ya fueron subidos por el browser directo a Spaces con las
   // presigned URLs de /api/reclamos/upload-url; aquí solo llegan sus keys.
   let body: {
@@ -117,7 +142,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Error de configuración del servidor" }, { status: 500 });
   }
 
-  // ── (b) Leer ubicacion_crm del apartamento desde la DB ────────────────────
+  // ── (c) Leer ubicacion_crm del apartamento desde la DB ────────────────────
   let ubicacionCrm: string;
   try {
     const result = await pool.query<{ ubicacion_crm: string | null }>(
@@ -137,7 +162,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Error de configuración del servidor" }, { status: 500 });
   }
 
-  // ── (c) Descargar los archivos ya subidos a Spaces para reenviarlos al CRM ──
+  // ── (d) Descargar los archivos ya subidos a Spaces para reenviarlos al CRM ──
   const archivos: File[] = [];
   const spacesUrls: string[] = [];
 
@@ -161,7 +186,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ── (d) Enviar al CRM de COMOSA ────────────────────────────────────────────
+  // ── (e) Enviar al CRM de COMOSA ────────────────────────────────────────────
   let crmResult;
   try {
     crmResult = await crearCaso({
@@ -179,7 +204,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // ── (e) Si el CRM falló, no insertar en DB ─────────────────────────────────
+  // ── (f) Si el CRM falló, no insertar en DB ─────────────────────────────────
   if (!crmResult.success) {
     // Los archivos ya subidos permanecen en Spaces (sin caso asociado aún).
     return NextResponse.json({ error: crmResult.message }, { status: 400 });
@@ -191,7 +216,7 @@ export async function POST(request: NextRequest) {
     console.error("CRM no devolvió número de caso. Respuesta:", JSON.stringify(crmResult));
   }
 
-  // ── (f) Guardar respaldo en reclamos_respaldo ─────────────────────────────
+  // ── (g) Guardar respaldo en reclamos_respaldo ─────────────────────────────
   try {
     await pool.query(
       `INSERT INTO reclamos_respaldo
