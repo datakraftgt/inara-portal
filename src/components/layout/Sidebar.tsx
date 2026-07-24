@@ -8,7 +8,6 @@ import {
   IconHome,
   IconRulerMeasure,
   IconFileText,
-  IconBuilding,
   IconAlertCircle,
 } from "@tabler/icons-react";
 import { useState } from "react";
@@ -17,7 +16,6 @@ const navItems = [
   { href: "/dashboard",        label: "Dashboard",    Icon: IconHome },
   { href: "/planos",           label: "Planos",       Icon: IconRulerMeasure },
   { href: "/mis-documentos",   label: "Documentos",   Icon: IconFileText },
-  { href: "/proveedores",      label: "Proveedores",  Icon: IconBuilding },
   { href: "/reclamos",         label: "Reclamos",     Icon: IconAlertCircle },
 ];
 

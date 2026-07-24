@@ -10,7 +10,6 @@ import {
   IconBolt,
   IconStar,
   IconAlertTriangle,
-  IconUsers,
   IconChevronRight,
   IconCircleCheck,
 } from "@tabler/icons-react";
@@ -101,13 +100,6 @@ const PORTAL_CARDS: PortalCard[] = [
     count: null,
     href: "/reclamos",
     dynamicCount: true,
-  },
-  {
-    Icon: IconUsers,
-    title: "Red de Proveedores",
-    description: "Contratistas y proveedores aprobados por el proyecto",
-    count: null,
-    href: "/proveedores",
   },
 ];
 
