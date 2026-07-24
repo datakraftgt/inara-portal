@@ -23,6 +23,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  other: { "deploy-check": "deploy-test-20260724-comosa" },
   title: "Inara Américas II – Portal Postventa",
   description: "Portal postventa para residentes de Inara Américas II",
 };
