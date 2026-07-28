@@ -36,7 +36,7 @@ export async function crearCaso(params: CasoParams): Promise<CasoResponse> {
     body.append("archivos", archivo, archivo.name);
   }
 
-  console.log("[CRM] POST", `${crmApiUrl}/caso/crearcaso`);
+  console.log("[CRM] POST", `${crmApiUrl}/Caso`);
   console.log("[CRM] Fields →", {
     titulo:          params.titulo,
     observaciones:   params.observaciones,
@@ -46,7 +46,7 @@ export async function crearCaso(params: CasoParams): Promise<CasoResponse> {
     archivos:        params.archivos.map(f => `${f.name} (${f.size}b)`),
   });
 
-  const response = await fetch(`${crmApiUrl}/caso/crearcaso`, {
+  const response = await fetch(`${crmApiUrl}/Caso`, {
     method: "POST",
     body,
   });
