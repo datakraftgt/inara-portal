@@ -23,7 +23,10 @@ const SHARED_SECTIONS = [
   { id: "reglamento",             label: "Reglamento del edificio" },
   { id: "manual-usuario",         label: "Manual de usuario" },
   { id: "catalogo-linea-blanca",  label: "Catálogo de línea blanca" },
-  { id: "administracion",         label: "Administración" },
+  // "administracion" oculto 2026-07-30 a pedido de Diego (COMOSA): el Reglamento del
+  // Edificio y el Manual de Administración se van a fusionar en un solo documento.
+  // Ver nota igual en (portal)/mis-documentos/page.tsx. Para reactivar: descomentar.
+  // { id: "administracion",         label: "Administración" },
   { id: "eegsa",                  label: "EEGSA – Energía eléctrica" },
   { id: "bienvenida",             label: "Documentos de Bienvenida" },
 ] as const;

@@ -5,7 +5,7 @@ import {
   IconBook,
   IconManualGearbox,
   IconMicrowave,
-  IconBuilding,
+  // IconBuilding, // usado solo por la sección "administracion" (oculta 2026-07-30)
   IconBolt,
   IconHome,
   IconFileTypePdf,
@@ -36,7 +36,12 @@ const SECTIONS: Section[] = [
   { id: "reglamento",            label: "Reglamento del edificio",  Icon: IconBook          },
   { id: "manual-usuario",        label: "Manual de usuario",        Icon: IconManualGearbox },
   { id: "catalogo-linea-blanca", label: "Catálogo de línea blanca", Icon: IconMicrowave     },
-  { id: "administracion",        label: "Administración",           Icon: IconBuilding      },
+  // "administracion" oculto 2026-07-30 a pedido de Diego (COMOSA): el Reglamento del
+  // Edificio y el Manual de Administración se van a fusionar en un solo documento, así
+  // que esta categoría se quedaría vacía. Los archivos que ya estén subidos en
+  // compartidos/administracion/ en el Space NO se tocan/borran.
+  // Para reactivar: descomentar la siguiente línea (y su par en admin/page.tsx).
+  // { id: "administracion",        label: "Administración",           Icon: IconBuilding      },
   { id: "eegsa",                 label: "EEGSA – Energía eléctrica",Icon: IconBolt          },
 ];
 
