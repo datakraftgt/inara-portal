@@ -114,9 +114,6 @@ export default function LoginForm() {
               : <IconEye size={18} stroke={1.75} />}
           </button>
         </div>
-        <p className="text-[11px] text-gray-500 leading-snug mt-0.5">
-          Tu contraseña inicial es el número de DPI del titular del apartamento.
-        </p>
       </div>
 
       {/* Submit */}
