@@ -901,8 +901,7 @@ export default function AdminPage() {
                           {resumenEntregas.bloqueadasParaReclamar} de {resumenEntregas.total} residentes
                         </span>{" "}
                         no pueden enviar reclamos por el portal, porque su unidad no tiene fecha de
-                        entrega registrada o la garantía ya venció. Si esas unidades ya se entregaron,
-                        hay que pedirle a Grupo GT que cargue las fechas.
+                        entrega registrada o la garantía ya venció.
                       </p>
                     </div>
                   )}
