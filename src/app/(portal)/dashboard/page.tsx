@@ -6,7 +6,7 @@ import {
   IconManualGearbox,
   IconMicrowave,
   IconMap2,
-  IconBuilding,
+  // IconBuilding, // usado solo por la card "Administración" (oculta 2026-08-20)
   IconBolt,
   IconStar,
   IconAlertTriangle,
@@ -43,34 +43,38 @@ type Claim = {
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
+// El `?seccion=` debe coincidir con los ids de SECTIONS en
+// (portal)/mis-documentos/page.tsx, que a su vez son las carpetas
+// `compartidos/<id>/` en el Space. Si se agrega/renombra una sección allá,
+// actualizar también aquí.
 const PORTAL_CARDS: PortalCard[] = [
   {
     Icon: IconStar,
     title: "Documentos de Bienvenida",
     description: "Acta de entrega y documentación inicial",
     count: "2 documentos",
-    href: "/mis-documentos",
+    href: "/mis-documentos?seccion=bienvenida",
   },
   {
     Icon: IconBook,
     title: "Reglamento del edificio",
     description: "Normas de convivencia y uso de instalaciones comunes",
     count: "1 documento",
-    href: "/mis-documentos",
+    href: "/mis-documentos?seccion=reglamento",
   },
   {
     Icon: IconManualGearbox,
     title: "Manual de usuario",
     description: "Guía de operación y mantenimiento de tu unidad",
     count: "1 documento",
-    href: "/mis-documentos",
+    href: "/mis-documentos?seccion=manual-usuario",
   },
   {
     Icon: IconMicrowave,
     title: "Catálogo de línea blanca",
     description: "Especificaciones de electrodomésticos instalados",
     count: "1 documento",
-    href: "/mis-documentos",
+    href: "/mis-documentos?seccion=catalogo-linea-blanca",
   },
   {
     Icon: IconMap2,
@@ -79,19 +83,25 @@ const PORTAL_CARDS: PortalCard[] = [
     count: "7 planos",
     href: "/planos",
   },
-  {
-    Icon: IconBuilding,
-    title: "Administración",
-    description: "Manual del administrador y normativas del condominio",
-    count: "1 manual",
-    href: "/mis-documentos",
-  },
+  // "Administración" oculto 2026-08-20: la sección correspondiente en
+  // mis-documentos se ocultó el 2026-07-30 (Reglamento + Manual de
+  // Administración se fusionan en un solo documento), así que esta card
+  // apuntaba a una sección inexistente.
+  // Para reactivar: descomentar aquí y su par en (portal)/mis-documentos/page.tsx
+  // y admin/page.tsx.
+  // {
+  //   Icon: IconBuilding,
+  //   title: "Administración",
+  //   description: "Manual del administrador y normativas del condominio",
+  //   count: "1 manual",
+  //   href: "/mis-documentos?seccion=administracion",
+  // },
   {
     Icon: IconBolt,
     title: "EEGSA – Energía eléctrica",
     description: "Documentos de conexión y contrato con la distribuidora",
     count: "2 documentos",
-    href: "/mis-documentos",
+    href: "/mis-documentos?seccion=eegsa",
   },
   {
     Icon: IconAlertTriangle,

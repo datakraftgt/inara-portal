@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   IconBook,
   IconManualGearbox,
@@ -46,6 +47,14 @@ const SECTIONS: Section[] = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// El dashboard enlaza cada card con ?seccion=<id>. Se valida contra SECTIONS
+// para que un id viejo, oculto (ej. "administracion") o manipulado a mano no
+// deje la página en un estado vacío: cae de vuelta a la primera sección.
+function resolveSectionId(raw: string | null): string {
+  if (raw && SECTIONS.some((s) => s.id === raw)) return raw;
+  return SECTIONS[0].id;
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -132,13 +141,26 @@ function DocumentRow({ file }: { file: FileItem }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function MisDocumentosPage() {
-  const [activeId, setActiveId]                             = useState(SECTIONS[0].id);
+function MisDocumentosContent() {
+  const router       = useRouter();
+  const pathname     = usePathname();
+  const searchParams = useSearchParams();
+
+  // La sección activa vive en la URL (?seccion=...), no en estado local: así
+  // los enlaces del dashboard abren directo en su sección y el back/forward
+  // del navegador funciona como el usuario espera.
+  const activeId = resolveSectionId(searchParams.get("seccion"));
+
   const [filesBySection, setFilesBySection]                 = useState<Record<string, FileItem[]>>({});
   const [loadingSection, setLoadingSection]                 = useState<string | null>(null);
   const [loadedSections, setLoadedSections]                 = useState<Set<string>>(new Set());
 
   const active = SECTIONS.find((s) => s.id === activeId) ?? SECTIONS[0];
+
+  function selectSection(id: string) {
+    if (id === activeId) return;
+    router.replace(`${pathname}?seccion=${id}`, { scroll: false });
+  }
 
   // Load files for the active section on first visit
   useEffect(() => {
@@ -181,7 +203,7 @@ export default function MisDocumentosPage() {
           return (
             <button
               key={section.id}
-              onClick={() => setActiveId(section.id)}
+              onClick={() => selectSection(section.id)}
               className={`
                 flex items-center gap-3 whitespace-nowrap
                 px-4 py-3 md:px-4 md:py-2.5
@@ -264,5 +286,56 @@ export default function MisDocumentosPage() {
       </div>
 
     </div>
+  );
+}
+
+// useSearchParams() obliga a un límite de Suspense en el App Router; sin él
+// el build de Next falla al prerenderizar la ruta. El fallback replica la
+// estructura (nav + panel) para que no haya salto de layout al hidratar.
+function MisDocumentosSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+      <nav
+        aria-hidden="true"
+        className="
+          flex flex-row md:flex-col
+          border-b md:border-b-0 md:border-r border-gray-200
+          bg-white md:w-60 md:py-3 md:flex-shrink-0
+        "
+      >
+        {SECTIONS.map((section) => (
+          <div
+            key={section.id}
+            className="flex items-center gap-3 px-4 py-3 md:px-4 md:py-2.5 flex-shrink-0"
+          >
+            <div className="w-4 h-4 rounded bg-gray-100 flex-shrink-0" />
+            <div className="h-3 w-28 rounded bg-gray-100" />
+          </div>
+        ))}
+      </nav>
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-9 h-9 rounded-lg bg-gray-100" />
+            <div>
+              <div className="h-4 w-44 rounded bg-gray-100" />
+              <div className="h-3 w-24 rounded bg-gray-100 mt-2" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-600 py-8 justify-center">
+            <IconLoader2 size={16} className="animate-spin" />
+            Cargando documentos...
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function MisDocumentosPage() {
+  return (
+    <Suspense fallback={<MisDocumentosSkeleton />}>
+      <MisDocumentosContent />
+    </Suspense>
   );
 }
