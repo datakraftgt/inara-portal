@@ -37,7 +37,14 @@ const fechaCache = new Map<string, CacheEntry>();
 // bloquea y la otra es fail-open.
 type ConsultaEntrega =
   | { disponible: true; fecha: string | null }
-  | { disponible: false };
+  | { disponible: false; motivo: MotivoNoDisponible };
+
+// `motivo` es informativo: existe para que el panel de administración pueda
+// distinguir "Grupo GT no conoce esta unidad" (404, un dato que hay que
+// corregir de su lado) de "el servicio no respondió" (transitorio). NINGUNA
+// decisión de negocio lo mira — getFechaEntrega y getElegibilidadReclamo
+// siguen ramificando solo por `disponible`, igual que antes.
+type MotivoNoDisponible = "no_encontrada" | "sin_configurar" | "error_servicio";
 
 /**
  * Nunca lanza excepción: cualquier error (red, HTTP, status_code != 0,
@@ -56,7 +63,7 @@ async function consultarFechaEntrega(codigoSap: string): Promise<ConsultaEntrega
     console.error(
       "[entrega] Faltan DELIVERY_API_BASE_URL / DELIVERY_API_PROJECT_SUFFIX en el entorno"
     );
-    return { disponible: false };
+    return { disponible: false, motivo: "sin_configurar" };
   }
 
   try {
@@ -72,23 +79,35 @@ async function consultarFechaEntrega(codigoSap: string): Promise<ConsultaEntrega
       signal: AbortSignal.timeout(5000),
     });
 
+    // 404 = "No se encontró la unidad con el id proporcionado". No es una falla
+    // transitoria: la unidad no existe del lado de Grupo GT y hay que darla de
+    // alta allá. Se sigue tratando como no-disponible (fail-open en reclamos),
+    // pero se marca aparte para que el panel admin lo pueda señalar.
+    if (res.status === 404) {
+      console.error(`[entrega] 404 unidad no registrada en Grupo GT: ${codigoSap}`);
+      return { disponible: false, motivo: "no_encontrada" };
+    }
+
     if (!res.ok) {
       console.error(`[entrega] HTTP ${res.status} consultando ${codigoSap}`);
-      return { disponible: false };
+      return { disponible: false, motivo: "error_servicio" };
     }
 
     const body: unknown = await res.json();
 
     if (!esRespuestaValida(body)) {
       console.error(`[entrega] Respuesta con estructura inesperada para ${codigoSap}`);
-      return { disponible: false };
+      return { disponible: false, motivo: "error_servicio" };
     }
 
     if (body.status_code !== 0) {
       console.error(
         `[entrega] status_code ${body.status_code} para ${codigoSap}: ${body.message}`
       );
-      return { disponible: false };
+      return {
+        disponible: false,
+        motivo: body.status_code === 404 ? "no_encontrada" : "error_servicio",
+      };
     }
 
     // data ausente o FechaEntrega ausente/no-string → tratar como null (unidad
@@ -102,7 +121,7 @@ async function consultarFechaEntrega(codigoSap: string): Promise<ConsultaEntrega
     return { disponible: true, fecha };
   } catch (error) {
     console.error(`[entrega] Error de red consultando ${codigoSap}:`, error);
-    return { disponible: false };
+    return { disponible: false, motivo: "error_servicio" };
   }
 }
 
@@ -136,8 +155,13 @@ export interface ElegibilidadReclamo {
  * Nunca lanza excepción.
  */
 export async function getElegibilidadReclamo(codigoSap: string): Promise<ElegibilidadReclamo> {
-  const consulta = await consultarFechaEntrega(codigoSap);
+  return evaluarElegibilidad(await consultarFechaEntrega(codigoSap), codigoSap);
+}
 
+// Lógica pura de elegibilidad, separada de la consulta para que getEstadoEntrega
+// pueda reusarla sin disparar una segunda llamada al servicio (las respuestas
+// fallidas no se cachean, así que llamar dos veces sí golpearía la red de nuevo).
+function evaluarElegibilidad(consulta: ConsultaEntrega, codigoSap: string): ElegibilidadReclamo {
   if (!consulta.disponible) {
     return { permitido: true, motivo: "servicio_no_disponible", fechaEntrega: null, fechaVencimiento: null };
   }
@@ -203,5 +227,62 @@ export function getCacheStats(): {
       age: now - entry.cachedAt,
       fecha: entry.fecha,
     })),
+  };
+}
+
+// ─── Estado consolidado por unidad (panel de administración) ──────────────────
+
+/** Cómo respondió Grupo GT para esta unidad. */
+export type EstadoEntrega =
+  | "con_fecha"       // entregada, con fecha registrada
+  | "sin_registrar"   // el servicio responde OK pero aún no tiene la fecha
+  | "no_encontrada"   // 404: la unidad no existe del lado de Grupo GT
+  | "sin_sap"         // el apartamento no tiene codigo_sap en nuestra BD
+  | "sin_configurar"  // faltan las variables DELIVERY_API_* en el entorno
+  | "error_servicio"; // timeout, HTTP != 200/404, respuesta malformada
+
+export interface EstadoEntregaUnidad {
+  estado: EstadoEntrega;
+  fechaEntrega: string | null;
+  /** fechaEntrega + 365 días, "YYYY-MM-DD" */
+  fechaVencimiento: string | null;
+  /** Si hoy este residente puede enviar un reclamo por el portal. */
+  puedeReclamar: boolean;
+  motivoReclamo: ElegibilidadReclamo["motivo"];
+}
+
+/**
+ * Vista consolidada para el panel admin: combina cómo respondió el servicio con
+ * la elegibilidad de reclamos resultante, en una sola consulta. Nunca lanza.
+ *
+ * `codigoSap` null (apartamento sin código en la BD) se reporta como "sin_sap"
+ * y se trata como fail-open, igual que el resto del portal.
+ */
+export async function getEstadoEntrega(codigoSap: string | null): Promise<EstadoEntregaUnidad> {
+  if (!codigoSap) {
+    return {
+      estado: "sin_sap",
+      fechaEntrega: null,
+      fechaVencimiento: null,
+      puedeReclamar: true,
+      motivoReclamo: "servicio_no_disponible",
+    };
+  }
+
+  const consulta = await consultarFechaEntrega(codigoSap);
+  const elegibilidad = evaluarElegibilidad(consulta, codigoSap);
+
+  const estado: EstadoEntrega = !consulta.disponible
+    ? consulta.motivo
+    : consulta.fecha !== null
+      ? "con_fecha"
+      : "sin_registrar";
+
+  return {
+    estado,
+    fechaEntrega: elegibilidad.fechaEntrega,
+    fechaVencimiento: elegibilidad.fechaVencimiento,
+    puedeReclamar: elegibilidad.permitido,
+    motivoReclamo: elegibilidad.motivo,
   };
 }

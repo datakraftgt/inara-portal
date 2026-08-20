@@ -15,6 +15,9 @@ import {
   IconPlus,
   IconUsers,
   IconSearch,
+  IconCalendarEvent,
+  IconDownload,
+  IconRefresh,
 } from "@tabler/icons-react";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -68,6 +71,34 @@ type FileListState = {
 
 type UploadState = "idle" | "uploading" | "success" | "error";
 
+// Espejo de los tipos de /api/admin/entregas
+type EstadoEntrega =
+  | "con_fecha"
+  | "sin_registrar"
+  | "no_encontrada"
+  | "sin_sap"
+  | "sin_configurar"
+  | "error_servicio";
+
+type UnidadEntrega = {
+  codigoLogin: string;
+  codigoSap: string | null;
+  estado: EstadoEntrega;
+  fechaEntrega: string | null;
+  fechaVencimiento: string | null;
+  puedeReclamar: boolean;
+};
+
+type ResumenEntregas = {
+  total: number;
+  conFecha: number;
+  sinRegistrar: number;
+  noEncontradas: number;
+  sinSap: number;
+  errores: number;
+  bloqueadasParaReclamar: number;
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatBytes(bytes: number): string {
@@ -98,6 +129,54 @@ function exactLogin(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// Etiqueta, color y explicación de cada estado de entrega. La explicación es
+// lo que le sirve a COMOSA para saber a quién reclamarle: si el dato falta de
+// su lado o del lado de Grupo GT.
+const ESTADO_ENTREGA_CONFIG: Record<
+  EstadoEntrega,
+  { label: string; clase: string; ayuda: string }
+> = {
+  con_fecha: {
+    label: "Con fecha",
+    clase: "bg-green-100 text-green-800",
+    ayuda: "Grupo GT tiene registrada la fecha de entrega.",
+  },
+  sin_registrar: {
+    label: "Sin registrar",
+    clase: "bg-amber-100 text-amber-800",
+    ayuda:
+      "Grupo GT responde pero aún no tiene cargada la fecha. Si la unidad ya se entregó, hay que pedirles que la carguen.",
+  },
+  no_encontrada: {
+    label: "No existe en Grupo GT",
+    clase: "bg-red-100 text-red-800",
+    ayuda:
+      "El servicio responde 404: esa unidad no está dada de alta de su lado. Hay que reportarlo a Grupo GT.",
+  },
+  sin_sap: {
+    label: "Sin código SAP",
+    clase: "bg-gray-200 text-gray-700",
+    ayuda: "El apartamento no tiene codigo_sap en la base del portal. Es un dato nuestro.",
+  },
+  sin_configurar: {
+    label: "Portal sin configurar",
+    clase: "bg-red-100 text-red-800",
+    ayuda: "Faltan las variables DELIVERY_API_* en el servidor.",
+  },
+  error_servicio: {
+    label: "Servicio no responde",
+    clase: "bg-red-100 text-red-800",
+    ayuda: "Timeout o error del servicio de Grupo GT. Suele ser transitorio; volver a consultar.",
+  },
+};
+
+function formatFechaCorta(fecha: string | null): string {
+  if (!fecha) return "—";
+  const d = new Date(`${fecha}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return fecha;
+  return d.toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 const MAX_SIZE = 50 * 1024 * 1024;
@@ -241,7 +320,7 @@ function FileRow({
 
 export default function AdminPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"compartidos" | "individual" | "residentes">("compartidos");
+  const [tab, setTab] = useState<"compartidos" | "individual" | "residentes" | "entregas">("compartidos");
 
   // Apartamentos
   const [apartamentos, setApartamentos] = useState<Apartamento[]>([]);
@@ -261,6 +340,13 @@ export default function AdminPage() {
   // Residentes tab: búsqueda y filtro "nunca han ingresado" (client-side)
   const [searchResidentes, setSearchResidentes] = useState("");
   const [soloNunca, setSoloNunca] = useState(false);
+
+  // Entregas tab
+  const [entregas, setEntregas] = useState<UnidadEntrega[]>([]);
+  const [resumenEntregas, setResumenEntregas] = useState<ResumenEntregas | null>(null);
+  const [loadingEntregas, setLoadingEntregas] = useState(false);
+  const [errorEntregas, setErrorEntregas] = useState<string | null>(null);
+  const [filtroEntrega, setFiltroEntrega] = useState<"todas" | "bloqueadas" | EstadoEntrega>("todas");
 
   // ── Load apartamentos ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -302,6 +388,69 @@ export default function AdminPage() {
     if (tab !== "compartidos") return;
     SHARED_SECTIONS.forEach((s) => loadFiles(`compartidos/${s.id}/`));
   }, [tab, loadFiles]);
+
+  // ── Entregas ─────────────────────────────────────────────────────────────────
+  // El barrido consulta el servicio de Grupo GT una vez por unidad, así que la
+  // primera carga tarda. El servidor cachea las respuestas válidas 1 hora; por
+  // eso solo se dispara al entrar a la pestaña o al pedirlo explícitamente.
+  const loadEntregas = useCallback(() => {
+    setLoadingEntregas(true);
+    setErrorEntregas(null);
+    fetch("/api/admin/entregas")
+      .then(async (r) => {
+        const data = (await r.json()) as {
+          resumen?: ResumenEntregas;
+          unidades?: UnidadEntrega[];
+          error?: string;
+        };
+        if (!r.ok) throw new Error(data.error ?? "Error al consultar entregas");
+        setEntregas(data.unidades ?? []);
+        setResumenEntregas(data.resumen ?? null);
+      })
+      .catch((err: unknown) => {
+        setErrorEntregas(err instanceof Error ? err.message : "Error al consultar entregas");
+      })
+      .finally(() => setLoadingEntregas(false));
+  }, []);
+
+  useEffect(() => {
+    if (tab !== "entregas" || resumenEntregas !== null || loadingEntregas) return;
+    loadEntregas();
+  }, [tab, resumenEntregas, loadingEntregas, loadEntregas]);
+
+  // Descarga el estado completo como CSV, que es el formato en el que COMOSA
+  // se lo puede pasar a Grupo GT para que carguen las fechas faltantes.
+  function descargarEntregasCsv() {
+    const encabezado = [
+      "Apartamento",
+      "Codigo SAP",
+      "Estado",
+      "Fecha de entrega",
+      "Garantia vence",
+      "Puede reclamar",
+    ];
+    const filas = entregas.map((u) => [
+      u.codigoLogin,
+      u.codigoSap ?? "",
+      ESTADO_ENTREGA_CONFIG[u.estado].label,
+      u.fechaEntrega ?? "",
+      u.fechaVencimiento ?? "",
+      u.puedeReclamar ? "Si" : "No",
+    ]);
+    // Comillas dobles escapadas: los códigos y etiquetas no traen comas hoy,
+    // pero el CSV no debe romperse si mañana alguna las trae.
+    const csv = [encabezado, ...filas]
+      .map((fila) => fila.map((celda) => `"${String(celda).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    // BOM para que Excel en Windows respete los acentos.
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `entregas-inara-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   // Load individual plano file lists when selectedApt changes (individual tab)
   useEffect(() => {
@@ -421,6 +570,7 @@ export default function AdminPage() {
             { id: "compartidos", label: "Documentos compartidos",    icon: <IconFolder size={15} /> },
             { id: "individual",  label: "Documentos por apartamento", icon: <IconBuilding size={15} /> },
             { id: "residentes",  label: "Residentes",                 icon: <IconUsers size={15} /> },
+            { id: "entregas",    label: "Fechas de entrega",          icon: <IconCalendarEvent size={15} /> },
           ] as const).map((t) => (
             <button
               key={t.id}
@@ -680,6 +830,179 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Fechas de entrega ── */}
+        {tab === "entregas" && (() => {
+          const visible = entregas.filter((u) => {
+            if (filtroEntrega === "todas") return true;
+            if (filtroEntrega === "bloqueadas") return !u.puedeReclamar;
+            return u.estado === filtroEntrega;
+          });
+
+          const tarjetas = resumenEntregas
+            ? [
+                { label: "Con fecha",        valor: resumenEntregas.conFecha,      clase: "text-green-700" },
+                { label: "Sin registrar",    valor: resumenEntregas.sinRegistrar,  clase: "text-amber-700" },
+                { label: "No existen",       valor: resumenEntregas.noEncontradas, clase: "text-red-700"   },
+                { label: "Sin código SAP",   valor: resumenEntregas.sinSap,        clase: "text-gray-600"  },
+                { label: "Servicio falló",   valor: resumenEntregas.errores,       clase: "text-red-700"   },
+              ]
+            : [];
+
+          return (
+            <div>
+              <p className="text-xs text-gray-400 mb-6">
+                Fecha de entrega que Grupo GT tiene registrada para cada unidad. El portal muestra esta
+                fecha al residente y la usa para decidir si puede enviar reclamos (garantía de 365 días
+                desde la entrega). La primera consulta del día tarda cerca de un minuto; después queda
+                en caché por una hora.
+              </p>
+
+              {loadingEntregas && (
+                <div className="flex items-center gap-2 px-5 py-10 text-sm text-gray-500 justify-center bg-white rounded-xl border border-gray-200">
+                  <IconLoader2 size={16} className="animate-spin" />
+                  Consultando el servicio de Grupo GT unidad por unidad...
+                </div>
+              )}
+
+              {errorEntregas && !loadingEntregas && (
+                <div className="flex items-start gap-2 px-5 py-4 rounded-xl border border-red-200 bg-red-50 text-sm text-red-800">
+                  <IconAlertCircle size={16} className="mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p>{errorEntregas}</p>
+                    <button onClick={loadEntregas} className="mt-2 underline font-medium">
+                      Reintentar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {resumenEntregas && !loadingEntregas && (
+                <>
+                  {/* Resumen */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+                    {tarjetas.map((t) => (
+                      <div key={t.label} className="bg-white rounded-xl border border-gray-200 px-4 py-3">
+                        <p className={`text-2xl font-semibold ${t.clase}`}>{t.valor}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{t.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Alerta de impacto: lo que de verdad importa de esta pantalla */}
+                  {resumenEntregas.bloqueadasParaReclamar > 0 && (
+                    <div className="flex items-start gap-2 px-4 py-3 mb-4 rounded-xl border border-amber-300 bg-amber-50 text-sm text-amber-900">
+                      <IconAlertCircle size={16} className="mt-0.5 shrink-0" />
+                      <p>
+                        <span className="font-semibold">
+                          {resumenEntregas.bloqueadasParaReclamar} de {resumenEntregas.total} residentes
+                        </span>{" "}
+                        no pueden enviar reclamos por el portal, porque su unidad no tiene fecha de
+                        entrega registrada o la garantía ya venció. Si esas unidades ya se entregaron,
+                        hay que pedirle a Grupo GT que cargue las fechas.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Filtros y acciones */}
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    {([
+                      { id: "todas",         label: `Todas (${entregas.length})` },
+                      { id: "bloqueadas",    label: `Sin poder reclamar (${resumenEntregas.bloqueadasParaReclamar})` },
+                      { id: "sin_registrar", label: "Sin registrar" },
+                      { id: "no_encontrada", label: "No existen" },
+                      { id: "con_fecha",     label: "Con fecha" },
+                    ] as const).map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => setFiltroEntrega(f.id)}
+                        className={`
+                          px-3 py-2 rounded-lg text-xs font-medium transition-colors border
+                          ${filtroEntrega === f.id
+                            ? "border-[#2D5A3D] bg-[#2D5A3D]/8 text-[#2D5A3D]"
+                            : "border-gray-300 bg-white text-gray-600 hover:text-gray-800"
+                          }
+                        `}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+
+                    <div className="flex-1" />
+
+                    <button
+                      onClick={descargarEntregasCsv}
+                      disabled={entregas.length === 0}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-[#2D5A3D] text-white hover:bg-[#4a8060] disabled:opacity-50 transition-colors"
+                    >
+                      <IconDownload size={14} />
+                      Descargar CSV
+                    </button>
+                    <button
+                      onClick={loadEntregas}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 bg-white text-gray-600 hover:text-gray-800 transition-colors"
+                    >
+                      <IconRefresh size={14} />
+                      Actualizar
+                    </button>
+                  </div>
+
+                  {/* Tabla */}
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    {visible.length === 0 ? (
+                      <p className="px-5 py-8 text-sm text-gray-400 text-center">
+                        No hay unidades con este filtro.
+                      </p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100 text-left">
+                              <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Apartamento</th>
+                              <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Código SAP</th>
+                              <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
+                              <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Entrega</th>
+                              <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Garantía vence</th>
+                              <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Reclamos</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {visible.map((u) => {
+                              const cfg = ESTADO_ENTREGA_CONFIG[u.estado];
+                              return (
+                                <tr key={u.codigoLogin} className="hover:bg-gray-50">
+                                  <td className="px-5 py-3 font-medium text-gray-700">{u.codigoLogin}</td>
+                                  <td className="px-5 py-3 text-gray-500 font-mono text-xs">{u.codigoSap ?? "—"}</td>
+                                  <td className="px-5 py-3">
+                                    <span
+                                      title={cfg.ayuda}
+                                      className={`rounded-full px-2 py-1 text-xs font-medium whitespace-nowrap ${cfg.clase}`}
+                                    >
+                                      {cfg.label}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatFechaCorta(u.fechaEntrega)}</td>
+                                  <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{formatFechaCorta(u.fechaVencimiento)}</td>
+                                  <td className="px-5 py-3">
+                                    {u.puedeReclamar ? (
+                                      <span className="text-green-700 text-xs font-medium">Habilitados</span>
+                                    ) : (
+                                      <span className="text-red-700 text-xs font-medium">Bloqueados</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           );
         })()}
