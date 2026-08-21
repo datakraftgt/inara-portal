@@ -381,10 +381,10 @@ export default function ReclamosClient({ bloqueo }: { bloqueo: BloqueoReclamos |
                     atenderemos.
                   </p>
                   <a
-                    href="mailto:servicioalcliente@comosa.com.gt"
+                    href="mailto:edificioinara2@adinmsa.gt"
                     className="inline-block mt-2.5 text-sm font-semibold text-[#2D5A3D] underline underline-offset-2 hover:text-[#4a8060] transition-colors break-all"
                   >
-                    servicioalcliente@comosa.com.gt
+                    edificioinara2@adinmsa.gt
                   </a>
                 </div>
               </div>

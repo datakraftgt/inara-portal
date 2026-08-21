@@ -105,7 +105,7 @@ const PORTAL_CARDS: PortalCard[] = [
   },
   {
     Icon: IconAlertTriangle,
-    title: "Reclamos",
+    title: "Atención de garantías",
     description: "Reporta defectos o solicitudes de garantía",
     count: null,
     href: "/reclamos",
@@ -303,7 +303,7 @@ function ClaimsSection({ claims }: { claims: Claim[] }) {
     <section className="px-6 md:px-10 py-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-playfair text-sm font-bold text-[#2D5A3D] uppercase tracking-widest">
-          Últimos reclamos
+          Últimos requerimientos
         </h2>
         <Link
           href="/reclamos"
@@ -366,7 +366,7 @@ function ClaimsSectionSkeleton() {
     <section className="px-6 md:px-10 py-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-playfair text-sm font-bold text-[#2D5A3D] uppercase tracking-widest">
-          Últimos reclamos
+          Últimos requerimientos
         </h2>
         <Link
           href="/reclamos"
@@ -424,7 +424,8 @@ const getFechaEntregaApartamento = cache(async (apartamentoId: number): Promise<
   return fechaResult.status === "fulfilled" ? fechaResult.value : null;
 });
 
-// Query compartido entre "Últimos reclamos" y el conteo de la card Reclamos.
+// Query compartido entre "Últimos requerimientos" y el conteo de la card
+// "Atención de garantías".
 // cache() deduplica por request: aunque ambos componentes lo llamen, la DB
 // se consulta una sola vez. COUNT(*) OVER() trae el total real (el LIMIT 3
 // solo acota las filas mostradas, no el conteo).
